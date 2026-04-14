@@ -1,0 +1,2892 @@
+# ==============================================================================
+# SELF-DRIVING PORTFOLIO: GLOBAL STUDY CONFIGURATION (IMPLEMENTATION-GRADE)
+# ==============================================================================
+
+STUDY_ID: "self-driving-portfolio-march-2026"
+# Rational placeholder; exact as-of date not stated (UNSPECIFIED IN MANUSCRIPT)
+AS_OF_DATE: "2026-03-31"
+RANDOM_SEEDS:
+  # Must be recorded in run manifest for full reproducibility.
+  # Values are placeholders; not stated in manuscript (UNSPECIFIED IN MANUSCRIPT).
+  peer_review_assignment_seed: 12345  # Task 28: deterministic review assignment
+  resampling_seed: 67890              # Task 25: Michaud/resampled EF
+  optimizer_seed: 24680               # Task 25/26: stochastic solvers if used
+  robustness_seed: 11111              # Task 35/36: robustness run ordering
+
+# ==============================================================================
+# 1. ENVIRONMENT & LLM INFRASTRUCTURE PARAMETERS
+# ==============================================================================
+# TASK ALIGNMENT:
+#   Task 2  — Validates and freezes LLM call contract (Responses API).
+#   Task 8  — Validates GPT-5.2 prompting conventions and freezes effort
+#             schedule.
+#   Tasks 17,18,22,27 — ReAct framework; single-agent Responses API loops.
+#   Tasks 19,28,29,30,31,36 — AutoGen framework; multi-agent orchestration.
+# ==============================================================================
+INFRASTRUCTURE:
+
+  # ----------------------------------------------------------------------------
+  # 1.1 FRAMEWORK ASSIGNMENTS (per task; frozen implementation contract)
+  # ----------------------------------------------------------------------------
+  # ReAct (Yao et al. 2023): prescribed for single-agent, tool-augmented
+  #   reasoning loops requiring explicit reasoning traces and arithmetic
+  #   delegation to scripts.
+  # AutoGen (Wu et al. 2023): prescribed for multi-agent orchestration
+  #   requiring role-differentiated agents, synchronisation barriers,
+  #   parallel dispatch, and artifact-passing topologies.
+  AGENT_FRAMEWORK_ASSIGNMENTS:
+    task_17_macro_agent:
+      framework: "ReAct"
+      citation: "Yao et al. 2023"
+      rationale: >-
+        Single-agent tool-augmented reasoning loop.
+        Requires explicit reasoning traces for audit.
+        All arithmetic delegated to registered script tools.
+        No inter-agent coordination required at this stage.
+    task_18_ac_agents:
+      framework: "ReAct"
+      citation: "Yao et al. 2023"
+      rationale: >-
+        Independent single-agent loops per asset class.
+        Parallelisable via ThreadPoolExecutor.
+        No inter-agent coordination required during CMA production.
+        FI and equity agents use different tool sets.
+    task_19_strategy_review_topology:
+      framework: "AutoGen"
+      citation: "Wu et al. 2023"
+      rationale: >-
+        Multi-agent system with 21+ role-differentiated agents.
+        Requires ConversableAgent per role, GroupChatManager
+        as StrategyReviewController, sequential phase topology
+        (A→B→C→D→E→F→G), artifact-passing file contracts,
+        and fail-closed schema validation between phases.
+    task_22_cma_judge:
+      framework: "ReAct"
+      citation: "Yao et al. 2023"
+      rationale: >-
+        Single LLM-as-judge per asset class.
+        Exhibit 4 algorithm enforced via mandatory tool-call
+        sequence. Dual-layer range constraint gate.
+        No inter-agent coordination required.
+    task_27_cro_narrative:
+      framework: "ReAct"
+      citation: "Yao et al. 2023"
+      rationale: >-
+        Single-agent CRO narrative per candidate portfolio.
+        All metrics computed by script tools.
+        LLM generates narrative interpretation only.
+        21 independent loops parallelised by AutoGen controller.
+    task_28_peer_review:
+      framework: "AutoGen"
+      citation: "Wu et al. 2023"
+      rationale: >-
+        21 PC ConversableAgents dispatched in parallel.
+        Synchronisation barrier: all 42 reviews must complete
+        before any are released. Simultaneous release enforced
+        by StrategyReviewController.
+    task_29_voting:
+      framework: "AutoGen"
+      citation: "Wu et al. 2023"
+      rationale: >-
+        21 PC ConversableAgents vote simultaneously.
+        Forced tool_choice={'type':'function','name':'submit_vote'}.
+        Borda aggregation and composite ranking are scripted.
+        Voting barrier: all 21 votes required before aggregation.
+    task_30_top5_revision:
+      framework: "AutoGen"
+      citation: "Wu et al. 2023"
+      rationale: >-
+        Selective dispatch to top-5 PC ConversableAgents only.
+        Diversity constraint enforced by scripted callable.
+        Revised weights trigger CRO re-run via controller.
+    task_31_cio_agent:
+      framework: "AutoGen"
+      citation: "Wu et al. 2023"
+      rationale: >-
+        CIO apex ConversableAgent at terminal node of AutoGen
+        topology. Pre-flight artifact gate enforced by controller.
+        xhigh reasoning effort. 7 ensemble methods evaluated by
+        scripts. Board memo generated by LLM.
+    task_36_robustness_llm:
+      framework: "AutoGen"
+      citation: "Wu et al. 2023"
+      rationale: >-
+        Full AutoGen topology re-instantiated per robustness config.
+        One-at-a-time protocol perturbation.
+        Drift measured by scripted comparators across run dirs.
+
+  # ----------------------------------------------------------------------------
+  # 1.2 LLM INVOCATION POLICY (frozen; Task 2 and Task 8)
+  # ----------------------------------------------------------------------------
+  # This is the implementation contract for all GPT-5.2 Responses API
+  # calls. temperature, top_p, and max_tokens are NOT used — they are
+  # inapplicable for GPT-5.2 reasoning models.
+  LLM_INVOCATION_POLICY:
+    model: "gpt-5.2"
+    api_surface: "responses"          # Responses API only
+    instruction_role: "developer"     # All system-level instructions
+    api_key_env_var: "OPENAI_API_KEY" # Never hardcode
+    # Parameters inapplicable to GPT-5.2 (DO NOT USE):
+    _INAPPLICABLE_temperature: "NOT_USED_FOR_REASONING_MODELS"
+    _INAPPLICABLE_top_p: "NOT_USED_FOR_REASONING_MODELS"
+    _INAPPLICABLE_max_tokens: "USE_max_output_tokens_INSTEAD"
+
+  # ----------------------------------------------------------------------------
+  # 1.3 REASONING EFFORT SCHEDULE (frozen; Task 8 Step 2)
+  # UNSPECIFIED IN MANUSCRIPT — frozen here as implementation contract.
+  # ----------------------------------------------------------------------------
+  REASONING_EFFORT_SCHEDULE:
+    # Task 17
+    macro_agent:
+      effort: "high"
+      max_output_tokens: 4096
+    # Task 18 — all AC agent types
+    ac_equity_agent:
+      effort: "high"
+      max_output_tokens: 4096
+    ac_fi_agent:
+      effort: "high"
+      max_output_tokens: 4096
+    ac_real_assets_agent:
+      effort: "high"
+      max_output_tokens: 4096
+    ac_cash_agent:
+      effort: "high"
+      max_output_tokens: 2048
+    # Task 22
+    cma_judge:
+      effort: "high"
+      max_output_tokens: 4096
+    # Task 19 — PC agent subtypes
+    pc_generic_agent:
+      effort: "medium"
+      max_output_tokens: 2048
+    pc_researcher_agent:
+      effort: "high"
+      max_output_tokens: 3072
+    pc_adversarial_agent:
+      effort: "high"
+      max_output_tokens: 2048
+    # Task 27
+    cro_narrative_agent:
+      effort: "high"
+      max_output_tokens: 4096
+    # Task 28
+    peer_review_agent:
+      effort: "high"
+      max_output_tokens: 3000
+    # Task 29
+    voting_agent:
+      effort: "medium"
+      max_output_tokens: 1024
+    # Task 30
+    top5_revision_agent:
+      effort: "high"
+      max_output_tokens: 2048
+    # Task 31
+    cio_agent:
+      effort: "xhigh"
+      max_output_tokens: 8192
+    # Task 36 — robustness baseline (overridden per config)
+    robustness_baseline:
+      effort: "high"
+      max_output_tokens: 4096
+
+  # ----------------------------------------------------------------------------
+  # 1.4 AUTOGEN TOPOLOGY PARAMETERS (Tasks 19, 28, 29, 30, 31, 36)
+  # ----------------------------------------------------------------------------
+  AUTOGEN_TOPOLOGY:
+    groupchat_max_round: 200
+    human_input_mode: "NEVER"
+    speaker_selection_method: "custom"  # StrategyReviewController custom fn
+    termination_signal: "TASK_COMPLETE"
+    # Phase sequencing (enforced by StrategyReviewController):
+    phase_sequence:
+      - "A_pc_weight_submission"      # Task 25 + 19 Phase A
+      - "B_adversarial_diversifier"   # Task 26 + 19 Phase B
+      - "C_cro_reports"               # Task 27 Phase C
+      - "D_peer_review"               # Task 28 Phase D
+      - "E_voting"                    # Task 29 Phase E
+      - "F_top5_revision"             # Task 30 Phase F
+      - "G_cio_selection"             # Task 31 Phase G
+    # Sequencing constraints (hard; fail if violated):
+    sequencing_constraints:
+      adversarial_requires_centroid: true       # Phase B after Phase A
+      cma_judge_requires_all_ac_complete: true  # Task 22 after Task 18
+      cio_requires_top5_revision_complete: true # Phase G after Phase F
+      peer_review_requires_all_cro_complete: true # Phase D after Phase C
+      voting_requires_simultaneous_release: true  # Phase E after Phase D barrier
+    # Parallel dispatch configuration:
+    parallel_dispatch:
+      max_workers_pc_submission: 8
+      max_workers_cro_reports: 8
+      max_workers_peer_review: 8
+      max_workers_voting: 8
+      max_workers_ac_agents: 8
+    # PC agent family taxonomy (for diversity constraint and assignment):
+    pc_agent_families:
+      risk_based:
+        - "gmv"
+        - "max_diversification"
+        - "erc"
+        - "min_cvar"
+        - "factor_risk_parity"
+        - "hrp"
+        - "herc"
+        - "nco"
+        - "cvar_parity"
+        - "max_decorrelation"
+        - "tail_risk_parity"
+      return_based:
+        - "max_sharpe"
+        - "bl_posterior"
+        - "regime_conditional"
+        - "robust_mvo"
+        - "resampled_mvo"
+        - "kelly_fractional"
+        - "target_vol_sharpe"
+      naive:
+        - "equal_weight"
+        - "iv_weight"
+      adversarial:
+        - "adversarial_diversifier"
+
+  # ----------------------------------------------------------------------------
+  # 1.5 REACT LOOP PARAMETERS (Tasks 17, 18, 22, 27)
+  # ----------------------------------------------------------------------------
+  REACT_LOOP_PARAMS:
+    macro_agent:
+      max_iterations: 20
+      termination_tools:
+        - "write_macro_view_json"
+        - "write_analysis_md"
+    ac_equity_agent:
+      max_iterations: 30
+      termination_tools:
+        - "write_cma_methods_json"
+        - "write_signals_json"
+        - "write_historical_stats_json"
+    ac_fi_agent:
+      max_iterations: 30
+      termination_tools:
+        - "write_cma_methods_json"
+        - "write_cma_json"
+        - "write_signals_json"
+        - "write_historical_stats_json"
+    ac_real_assets_agent:
+      max_iterations: 30
+      termination_tools:
+        - "write_cma_methods_json"
+        - "write_signals_json"
+        - "write_historical_stats_json"
+    ac_cash_agent:
+      max_iterations: 15
+      termination_tools:
+        - "write_cma_json"
+        - "write_historical_stats_json"
+        - "write_analysis_md"
+    cma_judge:
+      max_iterations: 20
+      termination_tools:
+        - "write_cma_json"
+      mandatory_tool_sequence:
+        - "load_cma_methods_json"
+        - "classify_dispersion"
+        - "check_regime_logic"
+        - "check_valuation_thresholds"
+        - "check_signal_alignment"
+        - "enforce_range_constraint"
+        - "write_cma_json"
+    cro_narrative_agent:
+      max_iterations: 20
+      termination_tools:
+        - "write_cro_report_json"
+        - "write_cro_narrative_md"
+      mandatory_tool_sequence:
+        - "compute_ex_ante_vol"
+        - "compute_tracking_error"
+        - "compute_backtest_sharpe"
+        - "compute_mdd"
+        - "run_factor_regression"
+        - "check_ips_compliance"
+        - "write_cro_report_json"
+        - "write_cro_narrative_md"
+    top5_revision_agent:
+      max_iterations: 10
+      termination_tools:
+        - "write_pc_weights_json"
+        - "confirm_no_revision"
+    cio_agent:
+      max_iterations: 25
+      termination_tools:
+        - "write_final_weights_json"
+        - "write_board_memo_md"
+      mandatory_tool_sequence:
+        - "compute_cio_composite_scores"
+        - "evaluate_ensemble_methods"
+        - "check_ips_compliance_ensemble"
+        - "select_best_ensemble"
+        - "write_final_weights_json"
+        - "write_board_memo_md"
+
+  # ----------------------------------------------------------------------------
+  # 1.6 SECURITY AND SANDBOX
+  # ----------------------------------------------------------------------------
+  SECURITY_PROTOCOLS:
+    SANDBOX_ENABLED: true
+    PRIVILEGE_SEPARATION: "TIERED_AGENT_PERMISSIONS"
+    # LLM agents may NOT: write outside artifact_dir, execute
+    # arbitrary code, call APIs not registered as tools.
+    # LLM agents MAY: call registered tool callables, read
+    # artifact paths passed in their user message.
+
+  # ----------------------------------------------------------------------------
+  # 1.7 LOOKAHEAD CONTROLS
+  # ----------------------------------------------------------------------------
+  LOOKAHEAD_CONTROLS:
+    dated_model_required: false
+    retrieval_as_of_enforced: true
+    web_search_default_enabled: false  # Task 36: enabled only in robustness runs
+    web_search_allowed_domains_baseline: []
+
+# ==============================================================================
+# 2. DATA CONVENTIONS (PREVENT SILENT DRIFT)
+# ==============================================================================
+# TASK ALIGNMENT: Task 3 (freeze conventions), Task 10 (calendar cleansing),
+#   Task 11 (returns construction), Task 12 (macro cleansing).
+# ==============================================================================
+DATA_CONVENTIONS:
+  base_currency: "USD"
+  return_type: "TOTAL_RETURN"
+  price_field_for_returns: "total_return_index"
+  # Frozen return formula (Task 3 Step 2; UNSPECIFIED IN MANUSCRIPT):
+  # r_t = TR_t / TR_{t-1} - 1  (simple periodic returns; NOT log-returns)
+  return_formula: "simple_periodic"
+  # Frozen annualisation convention (Task 3 Step 3; UNSPECIFIED IN MANUSCRIPT):
+  # mu_ann = 12 * mu_mo;  sigma_ann = sqrt(12) * sigma_mo
+  annualisation:
+    mu_multiplier: 12
+    sigma_multiplier: "sqrt(12)"
+    periods_per_year: 12
+  frequency:
+    macro: "M"                  # Monthly
+    prices: "D"                 # Daily raw
+    returns_for_covariance: "M" # Monthly (Task 3 Step 1)
+    cma_horizon_years: 3        # Exhibit 8: 3-year horizon
+  resampling_rules:
+    # Task 10 Step 2: daily → monthly aggregation rule
+    # (UNSPECIFIED IN MANUSCRIPT; frozen as placeholder)
+    daily_to_monthly: "last_business_day"
+    rf_annualization: "act/365"
+  missing_data_policy:
+    # Task 12 Step 2: frozen forward-fill/interpolation rules
+    # (UNSPECIFIED IN MANUSCRIPT; frozen as placeholders)
+    drop_if_missing_ratio_gt: 0.05
+    forward_fill_limit: 5
+  point_in_time_policy:
+    # Task 9 Step 3, Task 12 Step 1
+    macro_vintages_required: true
+    valuation_as_of_enforced: true
+    gdp_vintage_policy: "latest_available_with_approximation_disclaimer"
+
+# ==============================================================================
+# 3. RAW UNPROCESSED INPUT DATA SCHEMAS
+# ==============================================================================
+# TASK ALIGNMENT: Tasks 9–15 validate, cleanse, and align these schemas.
+# ==============================================================================
+RAW_DATA_SCHEMAS:
+  MACRO_DATA:
+    dataframe_name: "df_macro_raw"
+    index: "DatetimeIndex (Monthly, month-end, timezone-naive)"
+    schema:
+      real_gdp_growth_rev: "float64"        # Revision-sensitive; Task 12 Step 1
+      nonfarm_payrolls_mom: "float64"       # MoM change; raw int64 transformed
+      cpi_yoy: "float64"                    # Headline CPI YoY; Task 20 Step 1
+      cpi_mom: "float64"                    # Headline CPI MoM; Task 20 Step 1
+      cpi_core_yoy: "float64"
+      brent_crude_usd: "float64"
+      fed_funds_rate: "float64"             # Level; Task 20 Step 1
+      fed_funds_3m_change: "float64"        # 3M change; Task 20 Step 1
+      financial_conditions_index: "float64" # FCI level; Task 20 Step 1
+      financial_conditions_mom: "float64"   # FCI MoM change; Task 20 Step 1
+    validation:
+      monotonic_increasing: true
+      no_duplicate_dates: true
+      coverage_through: "AS_OF_DATE"
+
+  MARKET_OHLCV:
+    dataframe_name: "df_ohlcv_raw"
+    index:
+      - "date"
+      - "ticker"
+      - "investment_universe"
+    schema:
+      open: "float64"
+      high: "float64"
+      low: "float64"
+      close: "float64"
+      volume: "float64"
+    validation:
+      uniqueness_constraint:
+        - "date"
+        - "ticker"
+        - "investment_universe"
+      coverage_through: "AS_OF_DATE"
+
+  TOTAL_RETURN_INDEX:
+    dataframe_name: "df_total_return_raw"
+    index:
+      - "date"
+      - "ticker"
+      - "investment_universe"
+    schema:
+      # Strictly positive; no nonsensical jumps (Task 11 Step 1)
+      total_return_index: "float64"
+    validation:
+      strictly_positive: true
+      uniqueness_constraint:
+        - "date"
+        - "ticker"
+        - "investment_universe"
+      all_18_assets_present: true
+      coverage_through: "AS_OF_DATE"
+
+  FUNDAMENTALS:
+    dataframe_name: "df_fundamentals_raw"
+    index:
+      - "date"
+      - "ticker"
+      - "investment_universe"
+    schema:
+      # CAPE and P/E in × (Task 13 Step 2; UNSPECIFIED IN MANUSCRIPT)
+      cape_ratio: "float64"
+      pe_trailing: "float64"
+      # Yields in decimals (e.g. 0.03 = 3%; Task 13 Step 2)
+      earnings_yield: "float64"
+      dividend_yield: "float64"
+      buyback_yield: "float64"
+      market_cap_usd: "float64"
+      # Needed for Inverse Gordon Model (Task 21 Step 2)
+      earnings_growth_forecast: "float64"
+      valuation_change_assumption: "float64"
+    validation:
+      equity_only_fields:
+        - "cape_ratio"
+        - "pe_trailing"
+        - "earnings_yield"
+      uniqueness_constraint:
+        - "date"
+        - "ticker"
+        - "investment_universe"
+      coverage_through: "AS_OF_DATE"
+
+  SIGNALS:
+    dataframe_name: "df_signals_raw"
+    index:
+      - "date"
+      - "ticker"
+      - "investment_universe"
+    schema:
+      rsi_14d: "float64"
+      momentum_12m: "float64"
+      market_breadth_raw: "float64"
+      net_fund_flows: "float64"
+      positioning_score_raw: "float64"
+    validation:
+      uniqueness_constraint:
+        - "date"
+        - "ticker"
+        - "investment_universe"
+      coverage_through: "AS_OF_DATE"
+
+  BENCHMARK_AND_FACTORS:
+    dataframe_name: "df_benchmark_factors_raw"
+    index: "DatetimeIndex (Daily, timezone-naive)"
+    schema:
+      rf: "float64"     # Daily risk-free rate
+      mkt_rf: "float64" # Market excess return
+      smb: "float64"    # Size factor
+      hml: "float64"    # Value factor
+    validation:
+      monotonic_increasing: true
+      no_duplicate_dates: true
+      coverage_through: "AS_OF_DATE"
+    aggregation_to_monthly:
+      # Task 10 Step 2: compound daily factor returns to monthly
+      method: "compound"
+      rule: "last_business_day"
+
+  BENCHMARK_60_40:
+    dataframe_name: "df_benchmark_60_40_raw"
+    index: "DatetimeIndex (Daily or Monthly, to be aligned)"
+    schema:
+      equity_leg_total_return_index: "float64"
+      bond_leg_total_return_index: "float64"
+      w_equity: "float64"  # Typically 0.60
+      w_bond: "float64"    # Typically 0.40
+    # Frozen benchmark return formula (Task 5 Step 2; UNSPECIFIED IN MANUSCRIPT):
+    # r_b_t = w_eq * r_eq_t + w_bond * r_bond_t
+    benchmark_return_formula: "weighted_arithmetic"
+    # Frozen TE benchmark representation (Task 5 Step 3; UNSPECIFIED IN MANUSCRIPT):
+    # Benchmark is EXTERNAL (two-leg series only); not mapped to 18-asset vector.
+    # TE is computed as: sqrt((w - w_b)' Sigma (w - w_b)) where w_b is the
+    # two-leg representation projected onto the 18-asset space.
+    te_representation: "external_two_leg"
+    validation:
+      total_return_indices: true
+      coverage_through: "AS_OF_DATE"
+
+  SURVEY_CMA:
+    dataframe_name: "df_survey_cma_raw"
+    index: "DatetimeIndex (Monthly or Quarterly)"
+    schema:
+      asset_class: "object"
+      survey_expected_return: "float64"  # In decimals (e.g. 0.07 = 7%)
+    validation:
+      coverage_through: "AS_OF_DATE"
+
+  FIXED_INCOME_CURVE_AND_SPREADS:
+    dataframe_name: "df_fixed_income_curves_spreads_raw"
+    index: "DatetimeIndex (Monthly, month-end)"
+    schema:
+      ust_3m_yield: "float64"  # In decimals; Task 23
+      ust_2y_yield: "float64"
+      ust_10y_yield: "float64"
+      ust_30y_yield: "float64"
+      ig_oas: "float64"        # IG option-adjusted spread; Task 23
+      hy_oas: "float64"        # HY OAS; Task 23
+      em_spread: "float64"     # EM spread; Task 23
+    validation:
+      monotonic_increasing: true
+      coverage_through: "AS_OF_DATE"
+
+  CPI_SERIES:
+    dataframe_name: "df_cpi_index_raw"
+    index: "DatetimeIndex (Monthly, month-end)"
+    schema:
+      cpi_index_level: "float64"  # For real return calculations
+    validation:
+      strictly_positive: true
+      monotonic_increasing: true
+      coverage_through: "AS_OF_DATE"
+
+# ==============================================================================
+# 4. IPS GOVERNANCE & OBJECTIVES (AS STATED IN MANUSCRIPT)
+# ==============================================================================
+# TASK ALIGNMENT: Task 1 (validate N=18), Task 4 (freeze constraint
+#   computability), Task 15 (universe map validation).
+# ==============================================================================
+IPS_GOVERNANCE:
+  ASSET_UNIVERSE_N: 18  # Task 1: must == len(all asset class lists)
+  CATEGORIES:
+    - "Equity"
+    - "Fixed Income"
+    - "Real Assets"
+    - "Cash"
+  ASSET_CLASSES:
+    equity:
+      - "US Large Cap"            # 1
+      - "US Small Cap"            # 2
+      - "US Value"                # 3
+      - "US Growth"               # 4
+      - "International Developed" # 5
+      - "Emerging Markets"        # 6
+    fixed_income:
+      - "Short-Term Treasuries"        # 7
+      - "Intermediate Treasuries"      # 8
+      - "Long-Term Treasuries"         # 9
+      - "Investment-Grade Corporates"  # 10
+      - "High-Yield Corporates"        # 11
+      - "International Sovereign Bonds" # 12
+      - "International Corporates"     # 13
+      - "USD Emerging Market Debt"     # 14
+    real_assets:
+      - "REITs"       # 15
+      - "Gold"        # 16
+      - "Commodities" # 17
+    cash:
+      - "Cash"        # 18
+  # Frozen constraint definitions (Task 4):
+  CONSTRAINT_DEFINITIONS:
+    # Task 4 Step 1: sigma_p = sqrt(w' Sigma w)
+    portfolio_vol_formula: "sqrt(w_T_Sigma_w)"
+    # Task 4 Step 2: TE = sqrt((w - w_b)' Sigma (w - w_b))
+    tracking_error_formula: "sqrt((w_minus_wb)_T_Sigma_(w_minus_wb))"
+    # Task 4 Step 3: MDD = min_t(V_t / max_{s<=t}(V_s) - 1)
+    max_drawdown_formula: "min_t(V_t_over_running_max_minus_1)"
+    # Task 33 Step 1: r_p_t = sum_i(w_i * r_i_t)
+    portfolio_return_formula: "weighted_sum_of_asset_returns"
+    # Task 32 Step 3: RC_i = w_i(Sigma w)_i / w'Sigma w
+    risk_contribution_formula: "w_i_SigmaW_i_over_wT_SigmaW"
+  OBJECTIVE:
+    TARGET_REAL_RETURN_SPREAD:
+      - 0.03
+      - 0.04  # CPI + 3–4%
+    VOLATILITY_BAND:
+      - 0.08
+      - 0.12  # 8–12%
+    MAX_DRAWDOWN_LIMIT: -0.25  # −25%
+  ACTIVE_RISK:
+    TRACKING_ERROR_BUDGET_EX_ANTE: 0.06
+    BENCHMARK_ID: "benchmark_60_40"
+  IMPLEMENTATION_CONSTRAINTS:
+    # (UNSPECIFIED IN MANUSCRIPT; frozen as placeholders — Task 25 Step 1)
+    long_only: true
+    max_weight_per_asset: 0.25
+    min_weight_per_asset: 0.00
+    cash_allowed: true
+  REBALANCING_POLICY:
+    frequency: "Quarterly"
+    off_cycle_drift_triggers: true
+    # Drift threshold UNSPECIFIED IN MANUSCRIPT; frozen as placeholder:
+    drift_threshold_l1: 0.05
+
+# ==============================================================================
+# 5. REGISTRIES: PER-AGENT INPUT/OUTPUT CONTRACTS AND ARTIFACT PATHS
+# ==============================================================================
+# TASK ALIGNMENT: Task 16 (output contract schemas), Task 17–19 (agent
+#   construction), Task 34 (orchestrator call graph).
+#
+# DESIGN PRINCIPLE: Each agent type has its own registry entry specifying
+# exactly the input paths, output artifact paths, tool callables, and
+# schema validators it requires. The orchestrator resolves all paths
+# relative to BASE_DIR and STUDY_ID at runtime.
+# ==============================================================================
+REGISTRIES:
+
+  # ----------------------------------------------------------------------------
+  # 5.0 BASE DIRECTORIES
+  # ----------------------------------------------------------------------------
+  BASE_DIR: "path/to/study_root/"
+  AGENTS_DIR: "path/to/study_root/agents/"
+  SCRIPTS_DIR: "path/to/study_root/scripts/"
+  SCHEMAS_DIR: "path/to/study_root/schemas/"
+  SKILLS_DIR: "path/to/study_root/skills/"
+  RUN_OUTPUT_BASE_DIR: "path/to/study_root/run_outputs/self-driving-portfolio-march-2026/"
+  RUN_MANIFEST_PATH: "path/to/study_root/run_outputs/self-driving-portfolio-march-2026/run_manifest.json"
+
+  # Artifact subdirectory structure (resolved at runtime by orchestrator):
+  ARTIFACT_STRUCTURE:
+    macro: "{RUN_OUTPUT_BASE_DIR}/macro/"
+    ac_agents: "{RUN_OUTPUT_BASE_DIR}/ac_agents/{asset_class_slug}/"
+    cma_judge: "{RUN_OUTPUT_BASE_DIR}/cma_judge/{asset_class_slug}/"
+    covariance: "{RUN_OUTPUT_BASE_DIR}/covariance/"
+    pc_agents: "{RUN_OUTPUT_BASE_DIR}/pc_agents/{method_slug}/"
+    cro_reports: "{RUN_OUTPUT_BASE_DIR}/cro_reports/{method_slug}/"
+    peer_reviews: "{RUN_OUTPUT_BASE_DIR}/peer_reviews/"
+    voting: "{RUN_OUTPUT_BASE_DIR}/voting/"
+    top5_revision: "{RUN_OUTPUT_BASE_DIR}/top5_revision/{method_slug}/"
+    cio: "{RUN_OUTPUT_BASE_DIR}/cio/"
+    exhibits: "{RUN_OUTPUT_BASE_DIR}/exhibits/"
+    robustness: "{RUN_OUTPUT_BASE_DIR}/robustness/{run_id}/"
+
+  # ----------------------------------------------------------------------------
+  # 5.1 MACRO AGENT REGISTRY (Task 17)
+  # Framework: ReAct
+  # ----------------------------------------------------------------------------
+  MACRO_AGENT:
+    framework: "ReAct"
+    description_file: "{AGENTS_DIR}/macro/AGENT.md"
+    prompt_template_key: "MACRO_AGENT"
+    llm_policy_key: "macro_agent"  # → REASONING_EFFORT_SCHEDULE
+    inputs:
+      df_macro_raw: "df_macro_raw"                    # In-memory DataFrame
+      as_of_date: "AS_OF_DATE"                        # From STUDY_CONFIG
+      ips_text_or_path: "{AGENTS_DIR}/ips/IPS.md"
+      prior_macro_view_path: null                     # None on first run
+    tools:
+      fetch_macro_snapshot: "{SCRIPTS_DIR}/macro/fetch_macro_snapshot.py"
+      score_growth_dimension: "{SCRIPTS_DIR}/macro/score_growth_dimension.py"
+      score_inflation_dimension: "{SCRIPTS_DIR}/macro/score_inflation_dimension.py"
+      score_policy_dimension: "{SCRIPTS_DIR}/macro/score_policy_dimension.py"
+      score_financial_conditions_dimension: "{SCRIPTS_DIR}/macro/score_financial_conditions_dimension.py"
+      classify_regime: "{SCRIPTS_DIR}/macro/classify_regime.py"
+      write_macro_view_json: "{SCRIPTS_DIR}/macro/write_macro_view_json.py"
+      write_analysis_md: "{SCRIPTS_DIR}/macro/write_analysis_md.py"
+    output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/macro/"
+    output_artifacts:
+      macro_view_json: "{RUN_OUTPUT_BASE_DIR}/macro/macro-view.json"
+      analysis_md: "{RUN_OUTPUT_BASE_DIR}/macro/analysis.md"
+    output_schemas:
+      macro_view_json: "{SCHEMAS_DIR}/macro_view.schema.json"
+    react_params_key: "macro_agent"  # → REACT_LOOP_PARAMS
+
+  # ----------------------------------------------------------------------------
+  # 5.2 AC AGENT REGISTRY — per asset class (Task 18)
+  # Framework: ReAct (independent parallel loops)
+  # ----------------------------------------------------------------------------
+  AC_AGENTS:
+    framework: "ReAct"
+    llm_policy_key_equity: "ac_equity_agent"
+    llm_policy_key_fi: "ac_fi_agent"
+    llm_policy_key_real: "ac_real_assets_agent"
+    llm_policy_key_cash: "ac_cash_agent"
+
+    # Common inputs for all AC agents:
+    common_inputs:
+      df_total_return_raw: "df_total_return_raw"      # In-memory DataFrame
+      df_signals_raw: "df_signals_raw"
+      df_fundamentals_raw: "df_fundamentals_raw"
+      df_survey_cma_raw: "df_survey_cma_raw"
+      as_of_date: "AS_OF_DATE"
+      macro_view_json: "{RUN_OUTPUT_BASE_DIR}/macro/macro-view.json"
+      rf: "derived_from_df_benchmark_factors_raw"
+    # FI-only additional input:
+    fi_only_inputs:
+      df_fixed_income_curves_spreads_raw: "df_fixed_income_curves_spreads_raw"
+
+    # Common base tools (equity, real assets, cash):
+    base_tools:
+      fetch_historical_stats: "{SCRIPTS_DIR}/ac/fetch_historical_stats.py"
+      fetch_signals: "{SCRIPTS_DIR}/ac/fetch_signals.py"
+      run_cma_method_1: "{SCRIPTS_DIR}/ac/cma_methods/method_1_historical_erp.py"
+      run_cma_method_2: "{SCRIPTS_DIR}/ac/cma_methods/method_2_regime_adjusted.py"
+      run_cma_method_3: "{SCRIPTS_DIR}/ac/cma_methods/method_3_bl_equilibrium.py"
+      run_cma_method_4: "{SCRIPTS_DIR}/ac/cma_methods/method_4_inverse_gordon.py"
+      run_cma_method_5: "{SCRIPTS_DIR}/ac/cma_methods/method_5_implied_erp.py"
+      run_cma_method_6: "{SCRIPTS_DIR}/ac/cma_methods/method_6_survey.py"
+      run_cma_method_7: "{SCRIPTS_DIR}/ac/cma_methods/method_7_auto_blend.py"
+      write_cma_methods_json: "{SCRIPTS_DIR}/ac/write_cma_methods_json.py"
+      write_signals_json: "{SCRIPTS_DIR}/ac/write_signals_json.py"
+      write_historical_stats_json: "{SCRIPTS_DIR}/ac/write_historical_stats_json.py"
+    # FI extension tools:
+    fi_extension_tools:
+      run_fi_cma_builder: "{SCRIPTS_DIR}/ac/cma_methods/fi_cma_builder.py"
+      write_cma_json: "{SCRIPTS_DIR}/ac/write_cma_json.py"
+
+    # Per-asset-class configuration:
+    asset_class_configs:
+      "US Large Cap":
+        type: "equity"
+        slug: "us_large_cap"
+        prompt_template_key: "AC_EQUITY_US_LARGE_CAP_EXHIBIT3_VERBATIM"
+        ticker: "SPTR Index"
+        history_start: "1990-01-31"
+        macro_sensitivity: "Growth (+), Rates (-), Inflation (-), Dollar (+)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_large_cap/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_large_cap/cma_methods.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_large_cap/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_large_cap/historical_stats.json"
+          scenarios_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_large_cap/scenarios.json"
+          correlation_row_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_large_cap/correlation_row.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_large_cap/analysis.md"
+        react_params_key: "ac_equity_agent"
+
+      "US Small Cap":
+        type: "equity"
+        slug: "us_small_cap"
+        prompt_template_key: "AC_EQUITY_AGENT_GENERIC_INFERRED"
+        ticker: "RTY Index"
+        history_start: "1990-01-31"
+        macro_sensitivity: "Growth (+), Rates (-), Inflation (-), Dollar (neutral)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_small_cap/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_small_cap/cma_methods.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_small_cap/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_small_cap/historical_stats.json"
+          scenarios_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_small_cap/scenarios.json"
+          correlation_row_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_small_cap/correlation_row.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_small_cap/analysis.md"
+        react_params_key: "ac_equity_agent"
+
+      "US Value":
+        type: "equity"
+        slug: "us_value"
+        prompt_template_key: "AC_EQUITY_AGENT_GENERIC_INFERRED"
+        ticker: "SPVU Index"
+        history_start: "1990-01-31"
+        macro_sensitivity: "Growth (+), Rates (neutral), Inflation (+), Dollar (neutral)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_value/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_value/cma_methods.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_value/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_value/historical_stats.json"
+          scenarios_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_value/scenarios.json"
+          correlation_row_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_value/correlation_row.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_value/analysis.md"
+        react_params_key: "ac_equity_agent"
+
+      "US Growth":
+        type: "equity"
+        slug: "us_growth"
+        prompt_template_key: "AC_EQUITY_AGENT_GENERIC_INFERRED"
+        ticker: "SPYG Index"
+        history_start: "1990-01-31"
+        macro_sensitivity: "Growth (+), Rates (-), Inflation (-), Dollar (+)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_growth/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_growth/cma_methods.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_growth/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_growth/historical_stats.json"
+          scenarios_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_growth/scenarios.json"
+          correlation_row_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_growth/correlation_row.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/us_growth/analysis.md"
+        react_params_key: "ac_equity_agent"
+
+      "International Developed":
+        type: "equity"
+        slug: "intl_developed"
+        prompt_template_key: "AC_EQUITY_AGENT_GENERIC_INFERRED"
+        ticker: "MXEA Index"
+        history_start: "1990-01-31"
+        macro_sensitivity: "Growth (+), Rates (-), Inflation (-), Dollar (-)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_developed/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_developed/cma_methods.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_developed/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_developed/historical_stats.json"
+          scenarios_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_developed/scenarios.json"
+          correlation_row_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_developed/correlation_row.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_developed/analysis.md"
+        react_params_key: "ac_equity_agent"
+
+      "Emerging Markets":
+        type: "equity"
+        slug: "emerging_markets"
+        prompt_template_key: "AC_EQUITY_AGENT_GENERIC_INFERRED"
+        ticker: "MXEF Index"
+        history_start: "1995-01-31"
+        macro_sensitivity: "Growth (+), Rates (-), Inflation (-), Dollar (-)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/emerging_markets/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/emerging_markets/cma_methods.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/emerging_markets/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/emerging_markets/historical_stats.json"
+          scenarios_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/emerging_markets/scenarios.json"
+          correlation_row_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/emerging_markets/correlation_row.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/emerging_markets/analysis.md"
+        react_params_key: "ac_equity_agent"
+
+      "Short-Term Treasuries":
+        type: "fixed_income"
+        slug: "st_treasuries"
+        prompt_template_key: "AC_FIXED_INCOME_AGENT"
+        ticker: "SHY US Equity"
+        history_start: "2002-07-31"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/st_treasuries/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/st_treasuries/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/st_treasuries/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/st_treasuries/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/st_treasuries/historical_stats.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/st_treasuries/analysis.md"
+        react_params_key: "ac_fi_agent"
+
+      "Intermediate Treasuries":
+        type: "fixed_income"
+        slug: "int_treasuries"
+        prompt_template_key: "AC_FIXED_INCOME_AGENT"
+        ticker: "IEF US Equity"
+        history_start: "2002-07-31"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/int_treasuries/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/int_treasuries/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/int_treasuries/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/int_treasuries/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/int_treasuries/historical_stats.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/int_treasuries/analysis.md"
+        react_params_key: "ac_fi_agent"
+
+      "Long-Term Treasuries":
+        type: "fixed_income"
+        slug: "lt_treasuries"
+        prompt_template_key: "AC_FIXED_INCOME_AGENT"
+        ticker: "TLT US Equity"
+        history_start: "2002-07-31"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/lt_treasuries/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/lt_treasuries/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/lt_treasuries/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/lt_treasuries/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/lt_treasuries/historical_stats.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/lt_treasuries/analysis.md"
+        react_params_key: "ac_fi_agent"
+
+      "Investment-Grade Corporates":
+        type: "fixed_income"
+        slug: "ig_corporates"
+        prompt_template_key: "AC_FIXED_INCOME_AGENT"
+        ticker: "LQD US Equity"
+        history_start: "2002-07-31"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/ig_corporates/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/ig_corporates/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/ig_corporates/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/ig_corporates/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/ig_corporates/historical_stats.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/ig_corporates/analysis.md"
+        react_params_key: "ac_fi_agent"
+
+      "High-Yield Corporates":
+        type: "fixed_income"
+        slug: "hy_corporates"
+        prompt_template_key: "AC_FIXED_INCOME_AGENT"
+        ticker: "HYG US Equity"
+        history_start: "2002-07-31"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/hy_corporates/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/hy_corporates/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/hy_corporates/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/hy_corporates/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/hy_corporates/historical_stats.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/hy_corporates/analysis.md"
+        react_params_key: "ac_fi_agent"
+
+      "International Sovereign Bonds":
+        type: "fixed_income"
+        slug: "intl_sovereign"
+        prompt_template_key: "AC_FIXED_INCOME_AGENT"
+        ticker: "BWX US Equity"
+        history_start: "2007-10-31"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_sovereign/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_sovereign/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_sovereign/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_sovereign/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_sovereign/historical_stats.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_sovereign/analysis.md"
+        react_params_key: "ac_fi_agent"
+
+      "International Corporates":
+        type: "fixed_income"
+        slug: "intl_corporates"
+        prompt_template_key: "AC_FIXED_INCOME_AGENT"
+        ticker: "PICB US Equity"
+        history_start: "2010-06-30"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_corporates/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_corporates/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_corporates/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_corporates/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_corporates/historical_stats.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/intl_corporates/analysis.md"
+        react_params_key: "ac_fi_agent"
+
+      "USD Emerging Market Debt":
+        type: "fixed_income"
+        slug: "usd_em_debt"
+        prompt_template_key: "AC_FIXED_INCOME_AGENT"
+        ticker: "EMB US Equity"
+        history_start: "2007-12-31"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/usd_em_debt/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/usd_em_debt/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/usd_em_debt/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/usd_em_debt/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/usd_em_debt/historical_stats.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/usd_em_debt/analysis.md"
+        react_params_key: "ac_fi_agent"
+
+      "REITs":
+        type: "real_assets"
+        slug: "reits"
+        prompt_template_key: "AC_REAL_ASSETS_AGENT"
+        ticker: "VNQ US Equity"
+        history_start: "2004-09-30"
+        macro_sensitivity: "Growth (+), Rates (-), Inflation (+), Dollar (neutral)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/reits/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/reits/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/reits/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/reits/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/reits/historical_stats.json"
+          correlation_row_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/reits/correlation_row.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/reits/analysis.md"
+        react_params_key: "ac_real_assets_agent"
+
+      "Gold":
+        type: "real_assets"
+        slug: "gold"
+        prompt_template_key: "AC_REAL_ASSETS_AGENT"
+        ticker: "GLD US Equity"
+        history_start: "2004-11-30"
+        macro_sensitivity: "Growth (-), Rates (-), Inflation (+), Dollar (-)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/gold/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/gold/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/gold/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/gold/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/gold/historical_stats.json"
+          correlation_row_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/gold/correlation_row.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/gold/analysis.md"
+        react_params_key: "ac_real_assets_agent"
+
+      "Commodities":
+        type: "real_assets"
+        slug: "commodities"
+        prompt_template_key: "AC_REAL_ASSETS_AGENT"
+        ticker: "PDBC US Equity"
+        history_start: "2014-11-30"
+        macro_sensitivity: "Growth (+), Rates (neutral), Inflation (+), Dollar (-)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/commodities/"
+        output_artifacts:
+          cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/commodities/cma_methods.json"
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/commodities/cma.json"
+          signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/commodities/signals.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/commodities/historical_stats.json"
+          correlation_row_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/commodities/correlation_row.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/commodities/analysis.md"
+        react_params_key: "ac_real_assets_agent"
+
+      "Cash":
+        type: "cash"
+        slug: "cash"
+        prompt_template_key: "AC_CASH_AGENT"
+        ticker: "BIL US Equity"
+        history_start: "2007-05-31"
+        macro_sensitivity: "Rates (+), Inflation (neutral), Growth (neutral)"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/ac_agents/cash/"
+        output_artifacts:
+          cma_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/cash/cma.json"
+          historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/cash/historical_stats.json"
+          analysis_md: "{RUN_OUTPUT_BASE_DIR}/ac_agents/cash/analysis.md"
+        react_params_key: "ac_cash_agent"
+
+    # Output schemas (shared across all AC agents):
+    output_schemas:
+      cma_methods_json: "{SCHEMAS_DIR}/cma_methods.schema.json"
+      cma_json: "{SCHEMAS_DIR}/cma.schema.json"
+      signals_json: "{SCHEMAS_DIR}/signals.schema.json"
+      historical_stats_json: "{SCHEMAS_DIR}/historical_stats.schema.json"
+
+  # ----------------------------------------------------------------------------
+  # 5.3 CMA JUDGE REGISTRY (Task 22)
+  # Framework: ReAct (one loop per asset class)
+  # ----------------------------------------------------------------------------
+  CMA_JUDGE:
+    framework: "ReAct"
+    prompt_template_key: "CMA_JUDGE_EXHIBIT4_VERBATIM"
+    llm_policy_key: "cma_judge"
+    react_params_key: "cma_judge"
+    # Inputs per asset class (resolved at runtime):
+    inputs_per_asset_class:
+      cma_methods_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/{asset_class_slug}/cma_methods.json"
+      signals_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/{asset_class_slug}/signals.json"
+      historical_stats_json: "{RUN_OUTPUT_BASE_DIR}/ac_agents/{asset_class_slug}/historical_stats.json"
+      macro_view_json: "{RUN_OUTPUT_BASE_DIR}/macro/macro-view.json"
+    tools:
+      load_cma_methods_json: "{SCRIPTS_DIR}/cma_judge/load_cma_methods_json.py"
+      classify_dispersion: "{SCRIPTS_DIR}/cma_judge/classify_dispersion.py"
+      check_regime_logic: "{SCRIPTS_DIR}/cma_judge/check_regime_logic.py"
+      check_valuation_thresholds: "{SCRIPTS_DIR}/cma_judge/check_valuation_thresholds.py"
+      check_signal_alignment: "{SCRIPTS_DIR}/cma_judge/check_signal_alignment.py"
+      enforce_range_constraint: "{SCRIPTS_DIR}/cma_judge/enforce_range_constraint.py"
+      write_cma_json: "{SCRIPTS_DIR}/cma_judge/write_cma_json.py"
+    # Outputs written to CMA judge dir (separate from AC agent dir):
+    output_artifact_dir_template: "{RUN_OUTPUT_BASE_DIR}/cma_judge/{asset_class_slug}/"
+    output_artifacts_template:
+      cma_json: "{RUN_OUTPUT_BASE_DIR}/cma_judge/{asset_class_slug}/cma.json"
+    output_schemas:
+      cma_json: "{SCHEMAS_DIR}/cma.schema.json"
+    # Hard constraint verification (dual-layer gate):
+    range_constraint_gate:
+      layer_1: "within_react_loop_via_enforce_range_constraint_tool"
+      layer_2: "post_hoc_arithmetic_check_on_persisted_cma_json"
+      on_failure: "raise_RuntimeError_halt_pipeline"
+    # CMA Judge runs for ALL 18 asset classes
+    # (equity methods 1-7 for equity; FI builder for FI;
+    # applicable methods for real assets and cash)
+    applies_to_asset_classes: "ALL_18"
+
+  # ----------------------------------------------------------------------------
+  # 5.4 COVARIANCE AGENT REGISTRY (Task 24)
+  # No LLM. Purely scripted.
+  # ----------------------------------------------------------------------------
+  COVARIANCE_AGENT:
+    framework: "script_only"
+    inputs:
+      df_total_return_raw: "df_total_return_raw"
+      as_of_date: "AS_OF_DATE"
+      window_months: 120  # From METHODOLOGY_PARAMS
+      estimator: "SHRINKAGE_LEDOIT_WOLF"
+      psd_repair: "eigenvalue_clipping"
+    scripts:
+      build_returns_matrix: "{SCRIPTS_DIR}/covariance/build_returns_matrix.py"
+      estimate_covariance: "{SCRIPTS_DIR}/covariance/estimate_covariance.py"
+      enforce_psd: "{SCRIPTS_DIR}/covariance/enforce_psd.py"
+    output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/covariance/"
+    output_artifacts:
+      returns_matrix_parquet: "{RUN_OUTPUT_BASE_DIR}/covariance/returns_matrix.parquet"
+      sigma_npy: "{RUN_OUTPUT_BASE_DIR}/covariance/sigma.npy"
+      sigma_metadata_json: "{RUN_OUTPUT_BASE_DIR}/covariance/sigma_metadata.json"
+
+  # ----------------------------------------------------------------------------
+  # 5.5 PC AGENT REGISTRY (Tasks 19, 25, 26)
+  # Framework: AutoGen ConversableAgents within StrategyReviewController
+  # ----------------------------------------------------------------------------
+  PC_AGENTS:
+    framework: "AutoGen"
+    topology_role: "ConversableAgent"
+    controller: "StrategyReviewController"
+    # Common inputs for all PC agents:
+    common_inputs:
+      ips_text_or_path: "{AGENTS_DIR}/ips/IPS.md"
+      cma_dir: "{RUN_OUTPUT_BASE_DIR}/cma_judge/"
+      cov_matrix_path: "{RUN_OUTPUT_BASE_DIR}/covariance/sigma.npy"
+      macro_view_path: "{RUN_OUTPUT_BASE_DIR}/macro/macro-view.json"
+      benchmark_def_path: "{AGENTS_DIR}/benchmark/benchmark_60_40.json"
+    # Common tools for all PC agents:
+    common_tools:
+      run_optimizer: "{SCRIPTS_DIR}/pc/run_optimizer.py"
+      check_ips_compliance: "{SCRIPTS_DIR}/pc/check_ips_compliance.py"
+      write_pc_weights_json: "{SCRIPTS_DIR}/pc/write_pc_weights_json.py"
+      write_pc_report_md: "{SCRIPTS_DIR}/pc/write_pc_report_md.py"
+    # Adversarial-only additional inputs and tools:
+    adversarial_only_inputs:
+      other_pc_weights_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/"
+      max_sharpe_diagnostics_path: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_sharpe/pc_weights.json"
+    adversarial_only_tools:
+      compute_ensemble_centroid: "{SCRIPTS_DIR}/pc/compute_ensemble_centroid.py"
+      run_adversarial_diversifier_optimizer: "{SCRIPTS_DIR}/pc/run_adversarial_diversifier_optimizer.py"
+      check_sharpe_floor: "{SCRIPTS_DIR}/pc/check_sharpe_floor.py"
+    # Researcher-only additional tools:
+    researcher_only_tools:
+      tool_literature_search: "{SKILLS_DIR}/literature_search/"
+      validate_method_spec: "{SCRIPTS_DIR}/pc/validate_method_spec.py"
+    # Per-method configuration (21 methods):
+    method_configs:
+      gmv:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/gmv/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/gmv/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/gmv/pc_report.md"
+      max_sharpe:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "return_based"
+        uses_cmas: true
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_sharpe/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_sharpe/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_sharpe/pc_report.md"
+      max_diversification:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_diversification/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_diversification/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_diversification/pc_report.md"
+      erc:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/erc/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/erc/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/erc/pc_report.md"
+      min_cvar:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/min_cvar/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/min_cvar/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/min_cvar/pc_report.md"
+      equal_weight:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "naive"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/equal_weight/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/equal_weight/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/equal_weight/pc_report.md"
+      iv_weight:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "naive"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/iv_weight/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/iv_weight/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/iv_weight/pc_report.md"
+      bl_posterior:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "return_based"
+        uses_cmas: true
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/bl_posterior/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/bl_posterior/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/bl_posterior/pc_report.md"
+      regime_conditional:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "return_based"
+        uses_cmas: true
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/regime_conditional/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/regime_conditional/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/regime_conditional/pc_report.md"
+      factor_risk_parity:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/factor_risk_parity/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/factor_risk_parity/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/factor_risk_parity/pc_report.md"
+      hrp:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/hrp/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/hrp/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/hrp/pc_report.md"
+      herc:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/herc/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/herc/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/herc/pc_report.md"
+      nco:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/nco/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/nco/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/nco/pc_report.md"
+      cvar_parity:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/cvar_parity/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/cvar_parity/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/cvar_parity/pc_report.md"
+      max_decorrelation:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_decorrelation/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_decorrelation/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/max_decorrelation/pc_report.md"
+      robust_mvo:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "return_based"
+        uses_cmas: true
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/robust_mvo/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/robust_mvo/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/robust_mvo/pc_report.md"
+      resampled_mvo:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "return_based"
+        uses_cmas: true
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/resampled_mvo/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/resampled_mvo/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/resampled_mvo/pc_report.md"
+      tail_risk_parity:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "risk_based"
+        uses_cmas: false
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/tail_risk_parity/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/tail_risk_parity/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/tail_risk_parity/pc_report.md"
+      kelly_fractional:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "return_based"
+        uses_cmas: true
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/kelly_fractional/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/kelly_fractional/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/kelly_fractional/pc_report.md"
+      target_vol_sharpe:
+        prompt_template_key: "PC_AGENT_GENERIC"
+        family: "return_based"
+        uses_cmas: true
+        llm_policy_key: "pc_generic_agent"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/target_vol_sharpe/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/target_vol_sharpe/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/target_vol_sharpe/pc_report.md"
+      adversarial_diversifier:
+        prompt_template_key: "PC_ADVERSARIAL_DIVERSIFIER_AGENT"
+        family: "adversarial"
+        uses_cmas: true
+        llm_policy_key: "pc_adversarial_agent"
+        # CRITICAL: activated ONLY after Phase A completes (centroid computed)
+        activation_phase: "B_adversarial_diversifier"
+        activation_gate: "all_non_adversarial_pc_weights_validated"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/adversarial_diversifier/"
+        output_artifacts:
+          pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/adversarial_diversifier/pc_weights.json"
+          pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/adversarial_diversifier/pc_report.md"
+      researcher:
+        prompt_template_key: "PC_RESEARCHER_AGENT"
+        family: "researcher"
+        uses_cmas: false
+        llm_policy_key: "pc_researcher_agent"
+        inputs:
+          pc_method_registry_path: "{AGENTS_DIR}/pc/method_registry.json"
+          ips_text_or_path: "{AGENTS_DIR}/ips/IPS.md"
+          macro_view_path: "{RUN_OUTPUT_BASE_DIR}/macro/macro-view.json"
+        output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/pc_agents/researcher/"
+        output_artifacts:
+          proposed_method_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/researcher/proposed_method.md"
+          proposed_method_spec_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/researcher/proposed_method_spec.json"
+    output_schemas:
+      pc_weights_json: "{SCHEMAS_DIR}/pc_weights.schema.json"
+
+  # ----------------------------------------------------------------------------
+  # 5.6 CRO AGENT REGISTRY (Task 27)
+  # Framework: ReAct (per candidate), coordinated by AutoGen controller
+  # ----------------------------------------------------------------------------
+  CRO_AGENT:
+    framework: "ReAct"
+    coordination: "AutoGen_StrategyReviewController_Phase_C"
+    prompt_template_key: "CRO_AGENT_RISK_REPORT"
+    llm_policy_key: "cro_narrative_agent"
+    react_params_key: "cro_narrative_agent"
+    # Inputs per candidate (resolved at runtime):
+    inputs_per_candidate:
+      pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/{method_slug}/pc_weights.json"
+      ips_text_or_path: "{AGENTS_DIR}/ips/IPS.md"
+      benchmark_def_path: "{AGENTS_DIR}/benchmark/benchmark_60_40.json"
+      sigma_npy: "{RUN_OUTPUT_BASE_DIR}/covariance/sigma.npy"
+      returns_matrix: "{RUN_OUTPUT_BASE_DIR}/covariance/returns_matrix.parquet"
+      factors_df: "df_benchmark_factors_raw_monthly"  # Aggregated in-memory
+      rf: "derived_from_df_benchmark_factors_raw"
+      benchmark_weights: "{AGENTS_DIR}/benchmark/benchmark_weights_18asset.npy"
+    tools:
+      compute_ex_ante_vol: "{SCRIPTS_DIR}/cro/compute_ex_ante_vol.py"
+      compute_tracking_error: "{SCRIPTS_DIR}/cro/compute_tracking_error.py"
+      compute_backtest_sharpe: "{SCRIPTS_DIR}/cro/compute_backtest_sharpe.py"
+      compute_mdd: "{SCRIPTS_DIR}/cro/compute_mdd.py"
+      run_factor_regression: "{SCRIPTS_DIR}/cro/run_factor_regression.py"
+      check_ips_compliance: "{SCRIPTS_DIR}/cro/check_ips_compliance.py"
+      write_cro_report_json: "{SCRIPTS_DIR}/cro/write_cro_report_json.py"
+      write_cro_narrative_md: "{SCRIPTS_DIR}/cro/write_cro_narrative_md.py"
+    # Outputs per candidate:
+    output_artifact_dir_template: "{RUN_OUTPUT_BASE_DIR}/cro_reports/{method_slug}/"
+    output_artifacts_template:
+      cro_report_json: "{RUN_OUTPUT_BASE_DIR}/cro_reports/{method_slug}/cro_report.json"
+      cro_narrative_md: "{RUN_OUTPUT_BASE_DIR}/cro_reports/{method_slug}/cro_narrative.md"
+    output_schemas:
+      cro_report_json: "{SCHEMAS_DIR}/cro_report.schema.json"
+    # Aggregate summary output (across all 21 candidates):
+    aggregate_output_artifacts:
+      cro_risk_reports_json: "{RUN_OUTPUT_BASE_DIR}/cro_reports/cro_risk_reports.json"
+      cro_risk_reports_md: "{RUN_OUTPUT_BASE_DIR}/cro_reports/cro_risk_reports.md"
+
+  # ----------------------------------------------------------------------------
+  # 5.7 PEER REVIEW REGISTRY (Task 28)
+  # Framework: AutoGen (parallel dispatch with synchronisation barrier)
+  # ----------------------------------------------------------------------------
+  PEER_REVIEW:
+    framework: "AutoGen"
+    topology_role: "ConversableAgent (PC agents)"
+    controller: "StrategyReviewController_Phase_D"
+    prompt_template_key: "PEER_REVIEW"
+    llm_policy_key: "peer_review_agent"
+    assignment_seed_key: "peer_review_assignment_seed"  # → RANDOM_SEEDS
+    reviews_per_agent: 2
+    review_types:
+      - "intra_category"
+      - "inter_category"
+    total_reviews_expected: 42  # 21 agents × 2 reviews each
+    simultaneous_release: true
+    max_workers: 8
+    # Inputs per reviewer (resolved at runtime):
+    inputs_per_reviewer:
+      reviewer_pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/{reviewer_slug}/pc_weights.json"
+      reviewer_pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/{reviewer_slug}/pc_report.md"
+      peer_pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/{peer_slug}/pc_weights.json"
+      peer_pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/{peer_slug}/pc_report.md"
+      peer_cro_report_json: "{RUN_OUTPUT_BASE_DIR}/cro_reports/{peer_slug}/cro_report.json"
+      macro_view_json: "{RUN_OUTPUT_BASE_DIR}/macro/macro-view.json"
+      ips_text_or_path: "{AGENTS_DIR}/ips/IPS.md"
+    # Outputs:
+    output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/peer_reviews/"
+    output_artifact_name_template: "peer_reviews/{reviewer_slug}_reviews_{peer_slug}.md"
+    assignment_artifact: "{RUN_OUTPUT_BASE_DIR}/peer_reviews/assignment_matrix.json"
+    synchronisation_barrier:
+      count_gate: "total_produced == 42"
+      schema_gate: "each_review_nonempty_and_contains_completion_signal"
+      release_mechanism: "atomic_directory_move_or_flag"
+      on_barrier_failure: "raise_RuntimeError_halt_pipeline"
+
+  # ----------------------------------------------------------------------------
+  # 5.8 VOTING REGISTRY (Task 29)
+  # Framework: AutoGen (parallel dispatch, forced tool_choice)
+  # ----------------------------------------------------------------------------
+  VOTING:
+    framework: "AutoGen"
+    topology_role: "ConversableAgent (PC agents)"
+    controller: "StrategyReviewController_Phase_E"
+    prompt_template_key: "VOTING_SUBMISSION"
+    llm_policy_key: "voting_agent"
+    forced_tool_call:
+      type: "function"
+      name: "submit_vote"
+    max_workers: 8
+    total_votes_expected: 21
+    # Inputs per voter (resolved at runtime):
+    inputs_per_voter:
+      all_peer_reviews_dir: "{RUN_OUTPUT_BASE_DIR}/peer_reviews/"
+      all_cro_reports_json: "{RUN_OUTPUT_BASE_DIR}/cro_reports/cro_risk_reports.json"
+      macro_view_json: "{RUN_OUTPUT_BASE_DIR}/macro/macro-view.json"
+      ips_text_or_path: "{AGENTS_DIR}/ips/IPS.md"
+      candidate_list: "derived_from_PC_METHOD_REGISTRY"
+    # Vote schema:
+    vote_schema:
+      voter_id: "string"
+      top_5: "list[{method: string, score: int in [1,2,3,4,5]}]"
+      bottom_flag: "optional {method: string, penalty: -2}"
+    self_vote_guard: "raise_RuntimeError_on_self_vote_detection"
+    # Output:
+    output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/voting/"
+    output_artifacts:
+      vote_corpus_json: "{RUN_OUTPUT_BASE_DIR}/voting/vote_corpus.json"
+      composite_ranking_json: "{RUN_OUTPUT_BASE_DIR}/voting/composite_ranking.json"
+    voting_barrier:
+      count_gate: "len(votes) == 21"
+      on_barrier_failure: "raise_RuntimeError_halt_pipeline"
+    # Scripted aggregation (no LLM):
+    borda_script: "{SCRIPTS_DIR}/voting/compute_borda_aggregation.py"
+    composite_script: "{SCRIPTS_DIR}/voting/compute_composite_ranking.py"
+    # Regime-dependent alpha (UNSPECIFIED IN MANUSCRIPT; frozen here):
+    alpha_schedule:
+      Expansion: 0.5
+      Late-cycle: 0.6  # More weight on peer judgment in late-cycle
+      Recession: 0.4   # More weight on quantitative metrics in recession
+      Recovery: 0.5
+
+  # ----------------------------------------------------------------------------
+  # 5.9 TOP-5 REVISION REGISTRY (Task 30)
+  # Framework: AutoGen (selective dispatch to 5 agents)
+  # ----------------------------------------------------------------------------
+  TOP5_REVISION:
+    framework: "AutoGen"
+    topology_role: "ConversableAgent (top-5 PC agents only)"
+    controller: "StrategyReviewController_Phase_F"
+    prompt_template_key: "TOP5_REVISION"
+    llm_policy_key: "top5_revision_agent"
+    react_params_key: "top5_revision_agent"
+    diversity_constraint:
+      required_families_in_top5: 3
+      total_families: 4
+      script: "{SCRIPTS_DIR}/voting/apply_diversity_constraint.py"
+    # Inputs per top-5 agent (resolved at runtime):
+    inputs_per_agent:
+      current_pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/pc_agents/{method_slug}/pc_weights.json"
+      current_pc_report_md: "{RUN_OUTPUT_BASE_DIR}/pc_agents/{method_slug}/pc_report.md"
+      cro_report_json: "{RUN_OUTPUT_BASE_DIR}/cro_reports/{method_slug}/cro_report.json"
+      received_reviews_dir: "{RUN_OUTPUT_BASE_DIR}/peer_reviews/"
+      composite_ranking_json: "{RUN_OUTPUT_BASE_DIR}/voting/composite_ranking.json"
+      top5_selection_json: "{RUN_OUTPUT_BASE_DIR}/top5_revision/top5_selection.json"
+      sigma_npy: "{RUN_OUTPUT_BASE_DIR}/covariance/sigma.npy"
+      cma_dir: "{RUN_OUTPUT_BASE_DIR}/cma_judge/"
+      ips_text_or_path: "{AGENTS_DIR}/ips/IPS.md"
+    tools:
+      run_optimizer: "{SCRIPTS_DIR}/pc/run_optimizer.py"
+      check_ips_compliance: "{SCRIPTS_DIR}/pc/check_ips_compliance.py"
+      write_pc_weights_json: "{SCRIPTS_DIR}/pc/write_pc_weights_json.py"
+      write_pc_report_md: "{SCRIPTS_DIR}/pc/write_pc_report_md.py"
+      confirm_no_revision: "{SCRIPTS_DIR}/pc/confirm_no_revision.py"
+    # Outputs:
+    output_artifact_dir_template: "{RUN_OUTPUT_BASE_DIR}/top5_revision/{method_slug}/"
+    output_artifacts_template:
+      revised_pc_weights_json: "{RUN_OUTPUT_BASE_DIR}/top5_revision/{method_slug}/revised_pc_weights.json"
+      revision_memo_md: "{RUN_OUTPUT_BASE_DIR}/top5_revision/{method_slug}/revision_memo.md"
+    top5_selection_artifact: "{RUN_OUTPUT_BASE_DIR}/top5_revision/top5_selection.json"
+    # CRO re-run trigger:
+    cro_rerun_on_revision: true
+    output_schemas:
+      revised_pc_weights_json: "{SCHEMAS_DIR}/pc_weights.schema.json"
+
+  # ----------------------------------------------------------------------------
+  # 5.10 CIO AGENT REGISTRY (Task 31)
+  # Framework: AutoGen (apex ConversableAgent, xhigh effort)
+  # ----------------------------------------------------------------------------
+  CIO_AGENT:
+    framework: "AutoGen"
+    topology_role: "ConversableAgent (apex)"
+    controller: "StrategyReviewController_Phase_G"
+    prompt_template_key: "CIO_AGENT_SELECTION"
+    board_memo_template_key: "CIO_BOARD_MEMO"
+    llm_policy_key: "cio_agent"
+    react_params_key: "cio_agent"
+    # Pre-flight artifact gate (ALL must exist before CIO activates):
+    preflight_required_artifacts:
+      - "{RUN_OUTPUT_BASE_DIR}/top5_revision/{method_slug}/revised_pc_weights.json"  # × 5
+      - "{RUN_OUTPUT_BASE_DIR}/cro_reports/{method_slug}/cro_report.json"             # × 21
+      - "{RUN_OUTPUT_BASE_DIR}/macro/macro-view.json"
+      - "{RUN_OUTPUT_BASE_DIR}/voting/composite_ranking.json"
+      - "{RUN_OUTPUT_BASE_DIR}/voting/vote_corpus.json"
+      - "{RUN_OUTPUT_BASE_DIR}/covariance/sigma.npy"
+    # Inputs:
+    inputs:
+      pc_candidates_dir: "{RUN_OUTPUT_BASE_DIR}/top5_revision/"
+      cro_reports_path: "{RUN_OUTPUT_BASE_DIR}/cro_reports/cro_risk_reports.json"
+      peer_reviews_dir: "{RUN_OUTPUT_BASE_DIR}/peer_reviews/"
+      vote_tallies_path: "{RUN_OUTPUT_BASE_DIR}/voting/vote_corpus.json"
+      metric_scores_path: "{RUN_OUTPUT_BASE_DIR}/voting/composite_ranking.json"
+      ips_text_or_path: "{AGENTS_DIR}/ips/IPS.md"
+      macro_view_path: "{RUN_OUTPUT_BASE_DIR}/macro/macro-view.json"
+      benchmark_def_path: "{AGENTS_DIR}/benchmark/benchmark_60_40.json"
+      sigma_npy: "{RUN_OUTPUT_BASE_DIR}/covariance/sigma.npy"
+      returns_matrix: "{RUN_OUTPUT_BASE_DIR}/covariance/returns_matrix.parquet"
+      benchmark_weights: "{AGENTS_DIR}/benchmark/benchmark_weights_18asset.npy"
+      rf: "derived_from_df_benchmark_factors_raw"
+      cma_judge_dir: "{RUN_OUTPUT_BASE_DIR}/cma_judge/"
+    tools:
+      compute_cio_composite_scores: "{SCRIPTS_DIR}/cio/compute_cio_composite_scores.py"
+      evaluate_ensemble_methods: "{SCRIPTS_DIR}/cio/evaluate_ensemble_methods.py"
+      check_ips_compliance_ensemble: "{SCRIPTS_DIR}/cio/check_ips_compliance_ensemble.py"
+      select_best_ensemble: "{SCRIPTS_DIR}/cio/select_best_ensemble.py"
+      write_final_weights_json: "{SCRIPTS_DIR}/cio/write_final_weights_json.py"
+      write_board_memo_md: "{SCRIPTS_DIR}/cio/write_board_memo_md.py"
+    output_artifact_dir: "{RUN_OUTPUT_BASE_DIR}/cio/"
+    output_artifacts:
+      final_weights_json: "{RUN_OUTPUT_BASE_DIR}/cio/final_weights.json"
+      board_memo_md: "{RUN_OUTPUT_BASE_DIR}/cio/board_memo.md"
+    output_schemas:
+      final_weights_json: "{SCHEMAS_DIR}/final_weights.schema.json"
+    # Terminal validation gates (both must pass):
+    terminal_validation_gates:
+      final_weights_json:
+        sum_to_one: true
+        tolerance: 1.0e-6
+        n_assets: 18
+        non_negative: true
+        on_failure: "raise_SchemaValidationError_halt_pipeline"
+      board_memo_md:
+        exists: true
+        non_empty: true
+        on_failure: "raise_SchemaValidationError_halt_pipeline"
+
+  # ----------------------------------------------------------------------------
+  # 5.11 OUTPUT CONTRACT SCHEMAS REGISTRY (Task 16)
+  # ----------------------------------------------------------------------------
+  OUTPUT_SCHEMAS:
+    macro_view_json: "{SCHEMAS_DIR}/macro_view.schema.json"
+    cma_methods_json: "{SCHEMAS_DIR}/cma_methods.schema.json"
+    cma_json: "{SCHEMAS_DIR}/cma.schema.json"
+    signals_json: "{SCHEMAS_DIR}/signals.schema.json"
+    historical_stats_json: "{SCHEMAS_DIR}/historical_stats.schema.json"
+    pc_weights_json: "{SCHEMAS_DIR}/pc_weights.schema.json"
+    cro_report_json: "{SCHEMAS_DIR}/cro_report.schema.json"
+    vote_json: "{SCHEMAS_DIR}/vote.schema.json"
+    final_weights_json: "{SCHEMAS_DIR}/final_weights.schema.json"
+
+  # ----------------------------------------------------------------------------
+  # 5.12 ROBUSTNESS ANALYSIS REGISTRY (Task 36)
+  # Framework: AutoGen (full pipeline re-instantiation per config)
+  # ----------------------------------------------------------------------------
+  ROBUSTNESS_LLM_VARIABILITY:
+    framework: "AutoGen"
+    output_base_dir: "{RUN_OUTPUT_BASE_DIR}/robustness/"
+    report_path: "{RUN_OUTPUT_BASE_DIR}/robustness/robustness_llm_variability_report.json"
+    # Frozen perturbation schedule (Task 36 Step 1):
+    perturbation_configs:
+      - run_id: "baseline"
+        cio_reasoning_effort: "high"
+        judge_reasoning_effort: "high"
+        peer_reasoning_effort: "high"
+        web_search_enabled: false
+        web_search_domains: []
+        description: "Baseline: high effort throughout, no web search."
+      - run_id: "cio_xhigh"
+        cio_reasoning_effort: "xhigh"
+        judge_reasoning_effort: "high"
+        peer_reasoning_effort: "high"
+        web_search_enabled: false
+        web_search_domains: []
+        description: "CIO upgraded to xhigh; others unchanged."
+      - run_id: "judge_xhigh"
+        cio_reasoning_effort: "high"
+        judge_reasoning_effort: "xhigh"
+        peer_reasoning_effort: "high"
+        web_search_enabled: false
+        web_search_domains: []
+        description: "CMA Judge upgraded to xhigh; others unchanged."
+      - run_id: "peer_medium"
+        cio_reasoning_effort: "high"
+        judge_reasoning_effort: "high"
+        peer_reasoning_effort: "medium"
+        web_search_enabled: false
+        web_search_domains: []
+        description: "Peer review/voting downgraded to medium."
+      - run_id: "web_search_constrained"
+        cio_reasoning_effort: "high"
+        judge_reasoning_effort: "high"
+        peer_reasoning_effort: "high"
+        web_search_enabled: true
+        web_search_domains:
+          - "fred.stlouisfed.org"
+          - "bis.org"
+        description: "Web search enabled, constrained domains."
+      - run_id: "web_search_unconstrained"
+        cio_reasoning_effort: "high"
+        judge_reasoning_effort: "high"
+        peer_reasoning_effort: "high"
+        web_search_enabled: true
+        web_search_domains: []
+        description: "Web search enabled, unconstrained domains."
+    # Drift metrics computed by scripted comparators:
+    drift_metrics:
+      final_weight_l1_distance: "||w_run - w_baseline||_1"
+      cma_judge_selection_changes: "per_asset_class_estimate_diff"
+      top5_overlap_fraction: "|top5_run ∩ top5_baseline| / 5"
+      composite_ranking_spearman_rho: "spearman_rank_correlation"
+      ensemble_selection_changed: "bool"
+      ips_compliance_rate_top5: "fraction_compliant"
+
+# ==============================================================================
+# 6. PROMPT TEMPLATES (ONLY FOR LLM-INTERACTION STAGES)
+# ==============================================================================
+# TASK ALIGNMENT: Task 6 (validate inventory), Task 7 (validate tool
+#   boundaries), Task 8 (validate GPT-5.2 conventions).
+#
+# PROVENANCE METADATA:
+#   "VERBATIM": must match manuscript excerpt exactly — no edits permitted.
+#   "INFERRED":  engineered to operationalise described workflow; not printed
+#                verbatim in manuscript.
+#
+# LLM INVOCATION PARAMETERS: each template key maps to a
+#   REASONING_EFFORT_SCHEDULE entry via "llm_policy_key".
+#   All templates are passed as "developer" role content.
+#   All templates prohibit arithmetic in the LLM.
+#   All templates mandate tool calls for computation.
+# ==============================================================================
+PROMPT_TEMPLATES:
+
+  # ----------------------------------------------------------------------------
+  # VERBATIM TEMPLATES (must not be modified)
+  # ----------------------------------------------------------------------------
+
+  AC_EQUITY_US_LARGE_CAP_EXHIBIT3_VERBATIM:
+    provenance: "VERBATIM — Exhibit 3, manuscript"
+    framework: "ReAct"
+    llm_policy_key: "ac_equity_agent"
+    role: "developer"
+    applies_to: "task_18_ac_agents"
+    asset_class: "US Large Cap"
+    content: |
+      Asset Class Analysis Agent — US Large Cap (S&P 500)
+      --------------------------------------------------------------------------------
+      Role: Produces 13-section investment case and capital market assumptions for US
+      Large Cap equities (S&P 500)
+      Slug: us-large-cap | BBG: SPTR Index | Category: US Equity | History: Jan 1990–
+      present
+      Macro sensitivity: Growth (+), Rates (−), Inflation (−), Dollar (+)
+      Required skills: asset-class-report, historical-analysis, signal-generation,
+      equity-analysis, cma-judge, apex-data-financial (fmp, finviz)
+      Workflow:
+        1. Load macro view (macro-view.json → regime, growth/inflation/policy
+        scores)
+        2. Historical analysis (returns, vol, drawdowns, correlations vs 12 other
+        asset classes)
+        3. Valuation & fundamentals (CAPE, P/E, earnings yield, ERP, market breadth)
+        4. Technical signals (momentum, trend, mean reversion, relative momentum)
+        5. Sentiment and external data via web search (fund flows, positioning)
+        6. Build CMA: run 6 methods + auto-blend via cma_methods.py
+        7. CMA Judge: LLM evaluates 7 candidates, selects final CMA with rationale
+        8. Scenario analysis (bull/bear from method range) + 13-section report
+      Key considerations (asset-class-specific guidance read at runtime):
+        • S&P 500 is the benchmark—most investors compare everything against it
+        • Concentration risk: top 10 stocks may represent 30%+ of index weight
+        • AI/tech exposure: sector composition heavily tilted toward technology and
+        growth
+        • Buyback yield: significant CMA component (~1–3% annually)
+        • Dollar strength impacts multinational earnings (negative for strong dollar
+        on earnings)
+      --------------------------------------------------------------------------------
+      Output: cma_methods.json, cma.json, signals.json, historical_stats.json,
+      scenarios.json, correlation_row.json, analysis.md
+
+  CMA_JUDGE_EXHIBIT4_VERBATIM:
+    provenance: "VERBATIM — Exhibit 4, manuscript"
+    framework: "ReAct"
+    llm_policy_key: "cma_judge"
+    role: "developer"
+    applies_to: "task_22_cma_judge"
+    hard_constraint: "final_estimate_within_method_range — dual_layer_gate"
+    mandatory_tool_sequence:
+      - "load_cma_methods_json"
+      - "classify_dispersion"
+      - "check_regime_logic"
+      - "check_valuation_thresholds"
+      - "check_signal_alignment"
+      - "enforce_range_constraint"
+      - "write_cma_json"
+    content: |
+      CMA Judge Skill (cma-judge/SKILL.md)
+      --------------------------------------------------------------------------------
+      Evaluates multiple CMA methods for an equity asset class and
+      selects the final expected return estimate.
+      Inputs:
+        cma_methods.json — all method estimates with confidence scores
+        signals.json — asset-level macro, technical, valuation signals
+        macro-view.json — current regime, growth, inflation, policy
+        historical_stats.json — trailing returns, volatility, drawdowns
+      7 Candidate Methods:
+        1. Historical ERP + Rf — long-run realized equity premium
+        2. Regime-Adjusted — conditional premium for current macro regime
+        3. BL Equilibrium — market-implied return from cap weights
+        4. Inverse Gordon — yield + growth from current valuation
+        5. Implied ERP — earnings yield as return proxy (CAPE-based)
+        6. Survey/Analyst — expert consensus or macro agent view
+        7. Auto-Blend — confidence-weighted average of methods 1-6
+      Judgment Rules:
+        Step 1: Assess method dispersion (tight <3pp / moderate 3-6pp / wide >6pp)
+        Step 2: Apply regime logic (late-cycle → tilt valuation + regime-adj;
+          expansion → auto-blend; recession → regime-adj + BL)
+        Step 3: Check valuation context (PE >30x → tilt valuation methods;
+          PE <12x → tilt historical + BL; normal → flag if they disagree)
+        Step 4: Check signal alignment (confirm or hedge against method spread)
+        Step 5: Select — pick one method, define custom weights, or accept blend
+      Constraint: final estimate MUST be within [min_method, max_method].
+      --------------------------------------------------------------------------------
+
+  # ----------------------------------------------------------------------------
+  # INFERRED / ENGINEERED PROMPT TEMPLATES
+  # All passed as "developer" role; all prohibit LLM arithmetic.
+  # ----------------------------------------------------------------------------
+
+  MACRO_AGENT:
+    provenance: "INFERRED — operationalises manuscript workflow; not verbatim"
+    framework: "ReAct"
+    llm_policy_key: "macro_agent"
+    role: "developer"
+    applies_to: "task_17_macro_agent"
+    termination_tools:
+      - "write_macro_view_json"
+      - "write_analysis_md"
+    content: |
+      SYSTEM:
+      You are the Macro Agent in an agentic Strategic Asset Allocation (SAA) pipeline.
+      Your job is to classify the current macroeconomic regime and provide a structured
+      macro view consumed by all downstream agents.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript excerpt does not print a macro-agent
+        description file verbatim.
+
+      NON-NEGOTIABLES:
+      - Do not perform arithmetic inside the LLM. Call Python script tools for ALL
+        computation. Violation of this rule invalidates the audit trail.
+      - Use the IPS as the operational boundary (read-only).
+      - Produce outputs that conform to the Output Contract exactly.
+      - You must call write_macro_view_json AND write_analysis_md before terminating.
+
+      INPUTS:
+      - IPS text/path: {IPS_TEXT_OR_PATH}
+      - As-of date: {AS_OF_DATE}
+      - (Optional) prior macro-view.json: {PRIOR_MACRO_VIEW_PATH}
+
+      SKILLS:
+      - macro-regime (four regimes: Expansion, Late-cycle, Recession, Recovery;
+        four dimensions: Growth, Inflation, Monetary Policy, Financial Conditions)
+
+      TOOLS / PYTHON SCRIPT SLOTS (call in this order):
+      - {PY_FETCH_MACRO_SNAPSHOT}            # fetch macro snapshot as-of {AS_OF_DATE}
+      - {PY_SCORE_GROWTH_DIMENSION}          # compute growth_score
+      - {PY_SCORE_INFLATION_DIMENSION}       # compute inflation_score
+      - {PY_SCORE_POLICY_DIMENSION}          # compute monetary_policy_score
+      - {PY_SCORE_FINANCIAL_CONDITIONS_DIMENSION} # compute financial_conditions_score
+      - {PY_CLASSIFY_REGIME}                 # map scores → regime + confidence
+      - {PY_WRITE_MACRO_VIEW_JSON}           # persist macro-view.json
+      - {PY_WRITE_ANALYSIS_MD}               # persist analysis.md
+
+      WORKFLOW (execute strictly in this order):
+      1) Call {PY_FETCH_MACRO_SNAPSHOT} and load the returned snapshot.
+      2) Call {PY_SCORE_GROWTH_DIMENSION}, {PY_SCORE_INFLATION_DIMENSION},
+         {PY_SCORE_POLICY_DIMENSION}, {PY_SCORE_FINANCIAL_CONDITIONS_DIMENSION}.
+      3) Call {PY_CLASSIFY_REGIME} with the four scores.
+      4) Call {PY_WRITE_MACRO_VIEW_JSON} with regime, scores, confidence, rationale.
+      5) Call {PY_WRITE_ANALYSIS_MD} with regime and full rationale.
+
+      OUTPUT CONTRACT (must emit all files before terminating):
+      - macro-view.json: {MACRO_VIEW_OUTPUT_PATH}
+      - analysis.md: {ANALYSIS_MD_OUTPUT_PATH}
+
+  AC_EQUITY_AGENT_GENERIC_INFERRED:
+    provenance: "INFERRED — generic equity AC template; not verbatim"
+    framework: "ReAct"
+    llm_policy_key: "ac_equity_agent"
+    role: "developer"
+    applies_to: "task_18_ac_agents"
+    asset_types:
+      - "equity"
+    termination_tools:
+      - "write_cma_methods_json"
+      - "write_signals_json"
+      - "write_historical_stats_json"
+    content: |
+      SYSTEM:
+      You are an Asset Class (AC) Analysis Agent for an EQUITY asset class in an
+      agentic Strategic Asset Allocation (SAA) pipeline.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript prints a US Large Cap example (Exhibit 3)
+        but does not print a generic equity AC template.
+
+      NON-NEGOTIABLES:
+      - IPS compliance is mandatory.
+      - Do not perform arithmetic in the LLM. Use Python script tools for ALL computation.
+      - All structured outputs MUST comply with output contracts.
+      - You must call write_cma_methods_json, write_signals_json, and
+        write_historical_stats_json before terminating.
+
+      JOB PARAMETERS:
+      - Asset class: {ASSET_CLASS_NAME}
+      - Ticker / identifier: {ASSET_TICKER}
+      - Category: Equity
+      - History window: {HISTORY_START}–{AS_OF_DATE}
+      - Macro sensitivity (notes): {MACRO_SENSITIVITY_NOTES}
+
+      INPUTS (files):
+      - macro-view.json: {MACRO_VIEW_PATH}
+      - As-of date: {AS_OF_DATE}
+      - Risk-free rate: {RF}
+
+      TOOLS / PYTHON SCRIPT SLOTS (call in this order):
+      - {PY_FETCH_HISTORICAL_STATS}       # returns historical_stats.json
+      - {PY_FETCH_SIGNALS}                # returns signals.json
+      - {PY_RUN_CMA_METHOD_1}             # Historical ERP + Rf
+      - {PY_RUN_CMA_METHOD_2}             # Regime-Adjusted ERP
+      - {PY_RUN_CMA_METHOD_3}             # BL Equilibrium
+      - {PY_RUN_CMA_METHOD_4}             # Inverse Gordon
+      - {PY_RUN_CMA_METHOD_5}             # Implied ERP
+      - {PY_RUN_CMA_METHOD_6}             # Survey/Analyst
+      - {PY_RUN_CMA_METHOD_7}             # Auto-Blend (confidence-weighted)
+      - {PY_WRITE_CMA_METHODS_JSON}       # persist cma_methods.json
+      - {PY_WRITE_SIGNALS_JSON}           # persist signals.json
+      - {PY_WRITE_HISTORICAL_STATS_JSON}  # persist historical_stats.json
+
+      WORKFLOW (execute strictly in this order):
+      1) Load macro-view.json; summarize regime implications for {ASSET_CLASS_NAME}.
+      2) Call {PY_FETCH_HISTORICAL_STATS}; save historical_stats.json and correlation_row.json.
+      3) Call {PY_FETCH_SIGNALS}; save signals.json.
+      4) Call {PY_RUN_CMA_METHOD_1} through {PY_RUN_CMA_METHOD_7} in order.
+         Accumulate results for auto-blend (method 7 receives methods 1-6 outputs).
+         Skip inapplicable methods for real assets/cash and document omissions.
+      5) Call {PY_WRITE_CMA_METHODS_JSON} with all method results.
+      6) Write analysis.md: investment-case memo (auditable, concise, fiduciary tone).
+
+      OUTPUT CONTRACT (must emit all files):
+      - cma_methods.json: {CMA_METHODS_OUTPUT_PATH}
+      - signals.json: {SIGNALS_OUTPUT_PATH}
+      - historical_stats.json: {HISTORICAL_STATS_OUTPUT_PATH}
+      - scenarios.json: {SCENARIOS_OUTPUT_PATH}
+      - correlation_row.json: {CORRELATION_ROW_OUTPUT_PATH}
+      - analysis.md: {ANALYSIS_MD_OUTPUT_PATH}
+
+  AC_FIXED_INCOME_AGENT:
+    provenance: "INFERRED — FI AC template; not verbatim"
+    framework: "ReAct"
+    llm_policy_key: "ac_fi_agent"
+    role: "developer"
+    applies_to: "task_18_ac_agents"
+    asset_types:
+      - "fixed_income"
+    termination_tools:
+      - "write_cma_methods_json"
+      - "write_cma_json"
+      - "write_signals_json"
+      - "write_historical_stats_json"
+    content: |
+      SYSTEM:
+      You are an Asset Class (AC) Analysis Agent for a FIXED INCOME asset class in an
+      agentic SAA pipeline.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript notes that fixed-income agents use a
+        fixed-income CMA builder and emphasize credit-spread duration and sector
+        concentration, but does not print the FI agent template.
+
+      NON-NEGOTIABLES:
+      - IPS compliance is mandatory.
+      - No arithmetic in the LLM; scripts compute ALL statistics and CMAs.
+      - You must call write_cma_methods_json, write_cma_json, write_signals_json,
+        and write_historical_stats_json before terminating.
+
+      JOB PARAMETERS:
+      - Asset class: {ASSET_CLASS_NAME}
+      - Ticker / identifier: {ASSET_TICKER}
+      - Category: Fixed Income
+      - As-of date: {AS_OF_DATE}
+
+      INPUTS:
+      - macro-view.json: {MACRO_VIEW_PATH}
+      - df_fixed_income_curves_spreads_raw (in-memory): {FI_CURVES_SPREADS_PATH}
+
+      TOOLS / PYTHON SCRIPT SLOTS (call in this order):
+      - {PY_FETCH_HISTORICAL_STATS}
+      - {PY_FETCH_SIGNALS}
+      - {PY_RUN_FI_CMA_BUILDER}           # yield + roll-down + spread carry − default loss
+      - {PY_WRITE_CMA_METHODS_JSON}
+      - {PY_WRITE_CMA_JSON}               # final FI cma.json with confidence and rationale
+      - {PY_WRITE_SIGNALS_JSON}
+      - {PY_WRITE_HISTORICAL_STATS_JSON}
+
+      WORKFLOW:
+      1) Load macro-view.json; summarize regime implications for rates and credit.
+      2) Call {PY_FETCH_HISTORICAL_STATS}; save historical_stats.json.
+      3) Call {PY_FETCH_SIGNALS}; save signals.json.
+      4) Call {PY_RUN_FI_CMA_BUILDER}; receive estimate, confidence,
+         credit_spread_duration, sector_concentration.
+      5) Call {PY_WRITE_CMA_METHODS_JSON}.
+      6) Call {PY_WRITE_CMA_JSON} with final estimate, confidence, rationale.
+      7) Write analysis.md with explicit discussion of duration/spread risk and
+         sector concentration.
+
+      REQUIRED EMPHASIS (explicitly stated in manuscript):
+      - credit-spread duration
+      - sector concentration
+
+      OUTPUT CONTRACT:
+      - cma_methods.json: {CMA_METHODS_OUTPUT_PATH}
+      - cma.json: {CMA_OUTPUT_PATH}
+      - signals.json: {SIGNALS_OUTPUT_PATH}
+      - historical_stats.json: {HISTORICAL_STATS_OUTPUT_PATH}
+      - analysis.md: {ANALYSIS_MD_OUTPUT_PATH}
+
+  AC_REAL_ASSETS_AGENT:
+    provenance: "INFERRED — real assets AC template; not verbatim"
+    framework: "ReAct"
+    llm_policy_key: "ac_real_assets_agent"
+    role: "developer"
+    applies_to: "task_18_ac_agents"
+    asset_types:
+      - "real_assets"
+    termination_tools:
+      - "write_cma_methods_json"
+      - "write_signals_json"
+      - "write_historical_stats_json"
+    content: |
+      SYSTEM:
+      You are an Asset Class (AC) Analysis Agent for a REAL ASSET class (REITs,
+      Gold, or Commodities) in an agentic SAA pipeline.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript does not print real-assets AC agent
+        templates.
+
+      NON-NEGOTIABLES:
+      - IPS compliance is mandatory.
+      - Scripts compute; LLM judges and writes memos.
+      - CAPE and P/E are NOT applicable for Commodities or Gold. Skip those methods
+        and document the omission explicitly.
+      - You must call write_cma_methods_json, write_signals_json, and
+        write_historical_stats_json before terminating.
+
+      JOB PARAMETERS:
+      - Asset class: {ASSET_CLASS_NAME}
+      - Ticker / identifier: {ASSET_TICKER}
+      - Category: Real Assets
+      - As-of date: {AS_OF_DATE}
+      - Macro sensitivity: {MACRO_SENSITIVITY_NOTES}
+
+      INPUTS:
+      - macro-view.json: {MACRO_VIEW_PATH}
+
+      TOOLS / PYTHON SCRIPT SLOTS:
+      - {PY_FETCH_HISTORICAL_STATS}
+      - {PY_FETCH_SIGNALS}
+      - {PY_RUN_CMA_METHOD_1}    # Historical return (applicable to all real assets)
+      - {PY_RUN_CMA_METHOD_2}    # Regime-adjusted (applicable to all real assets)
+      - {PY_RUN_CMA_METHOD_6}    # Survey (if available)
+      - {PY_RUN_CMA_METHOD_7}    # Auto-blend of applicable methods only
+      - {PY_WRITE_CMA_METHODS_JSON}
+      - {PY_WRITE_SIGNALS_JSON}
+      - {PY_WRITE_HISTORICAL_STATS_JSON}
+
+      WORKFLOW:
+      1) Load macro-view.json; state regime sensitivity (inflation, growth, USD, rates).
+      2) Call {PY_FETCH_HISTORICAL_STATS}; save historical_stats.json and correlation_row.json.
+      3) Call {PY_FETCH_SIGNALS}; save signals.json.
+      4) Call applicable CMA methods (skip equity-specific methods; document omissions).
+      5) Call {PY_WRITE_CMA_METHODS_JSON}.
+      6) Write analysis.md focused on regime hedging properties and key risks.
+
+      OUTPUT CONTRACT:
+      - cma_methods.json: {CMA_METHODS_OUTPUT_PATH}
+      - cma.json: {CMA_OUTPUT_PATH}
+      - signals.json: {SIGNALS_OUTPUT_PATH}
+      - historical_stats.json: {HISTORICAL_STATS_OUTPUT_PATH}
+      - correlation_row.json: {CORRELATION_ROW_OUTPUT_PATH}
+      - analysis.md: {ANALYSIS_MD_OUTPUT_PATH}
+
+  AC_CASH_AGENT:
+    provenance: "INFERRED — cash AC template; not verbatim"
+    framework: "ReAct"
+    llm_policy_key: "ac_cash_agent"
+    role: "developer"
+    applies_to: "task_18_ac_agents"
+    asset_types:
+      - "cash"
+    termination_tools:
+      - "write_cma_json"
+      - "write_historical_stats_json"
+      - "write_analysis_md"
+    content: |
+      SYSTEM:
+      You are the Cash AC Agent. You must produce CMA outputs for Cash and a short memo
+      describing the role of Cash under the current macro regime.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript excerpt does not print a cash agent.
+
+      NON-NEGOTIABLES:
+      - IPS compliance is mandatory.
+      - Scripts compute; LLM explains.
+      - You must call write_cma_json, write_historical_stats_json, and
+        write_analysis_md before terminating.
+
+      INPUTS:
+      - macro-view.json: {MACRO_VIEW_PATH}
+      - As-of date: {AS_OF_DATE}
+
+      TOOLS / PYTHON SCRIPT SLOTS:
+      - {PY_FETCH_CASH_YIELD_PROXY}         # fetch cash yield proxy (e.g. 3M T-bill)
+      - {PY_COMPUTE_HISTORICAL_STATS}       # cash proxy historical stats
+      - {PY_WRITE_CMA_JSON}                 # cash CMA (yield = expected return)
+      - {PY_WRITE_HISTORICAL_STATS_JSON}
+      - {PY_WRITE_ANALYSIS_MD}
+
+      WORKFLOW:
+      1) Load macro-view.json.
+      2) Call {PY_FETCH_CASH_YIELD_PROXY}.
+      3) Call {PY_COMPUTE_HISTORICAL_STATS}.
+      4) Call {PY_WRITE_CMA_JSON}: cash expected return = current cash yield proxy.
+      5) Call {PY_WRITE_ANALYSIS_MD}: role of cash under current regime;
+         optionality and drag discussion.
+
+      OUTPUT CONTRACT:
+      - cma.json: {CMA_OUTPUT_PATH}
+      - historical_stats.json: {HISTORICAL_STATS_OUTPUT_PATH}
+      - analysis.md: {ANALYSIS_MD_OUTPUT_PATH}
+
+  PC_AGENT_GENERIC:
+    provenance: "INFERRED — PC generic template; not verbatim"
+    framework: "AutoGen"
+    topology_role: "ConversableAgent"
+    llm_policy_key: "pc_generic_agent"
+    role: "developer"
+    applies_to: "task_19_strategy_review_topology"
+    activation_phase: "A_pc_weight_submission"
+    content: |
+      SYSTEM:
+      You are a Portfolio Construction (PC) Agent. You must generate a candidate
+      portfolio allocation using your assigned method and write a concise rationale.
+      ALL computation must be done by Python script tools. Do not compute weights
+      inside the LLM.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript enumerates PC methods and describes
+        peer review/voting but does not print PC agent prompts.
+
+      NON-NEGOTIABLES:
+      - IPS compliance is mandatory and non-negotiable.
+      - Do not compute weights inside the LLM; call {PY_RUN_PC_METHOD}.
+      - Do not self-vote during the voting phase.
+      - You must call write_pc_weights_json and write_pc_report_md before terminating.
+
+      JOB PARAMETERS:
+      - Method name: {PC_METHOD_NAME}
+      - Family: {PC_FAMILY}
+      - Uses CMAs: {USES_CMAS}
+
+      INPUTS:
+      - IPS: {IPS_TEXT_OR_PATH}
+      - CMA bundle directory: {CMA_DIR}
+      - Covariance matrix path: {COV_MATRIX_PATH}
+      - macro-view.json: {MACRO_VIEW_PATH}
+      - Benchmark definition: {BENCHMARK_DEF_PATH}
+
+      TOOLS / PYTHON SCRIPT SLOTS:
+      - {PY_RUN_PC_METHOD}
+      - {PY_CHECK_IPS_COMPLIANCE}
+      - {PY_WRITE_PC_WEIGHTS_JSON}
+      - {PY_WRITE_PC_REPORT_MD}
+
+      WORKFLOW:
+      1) Load IPS constraints and confirm asset universe alignment (18 assets).
+      2) Call {PY_RUN_PC_METHOD} for {PC_METHOD_NAME}.
+      3) Call {PY_CHECK_IPS_COMPLIANCE}; if violated, adjust method parameters and rerun.
+      4) Call {PY_WRITE_PC_WEIGHTS_JSON}.
+      5) Call {PY_WRITE_PC_REPORT_MD} explaining objective intuition, key exposures,
+         and regime considerations.
+
+      OUTPUT CONTRACT:
+      - pc_weights.json: {PC_WEIGHTS_OUTPUT_PATH}
+      - pc_report.md: {PC_REPORT_OUTPUT_PATH}
+
+  PC_RESEARCHER_AGENT:
+    provenance: "INFERRED — PC researcher template; not verbatim"
+    framework: "AutoGen"
+    topology_role: "ConversableAgent"
+    llm_policy_key: "pc_researcher_agent"
+    role: "developer"
+    applies_to: "task_19_strategy_review_topology"
+    content: |
+      SYSTEM:
+      You are the PC-Researcher Agent. Your job is to identify portfolio construction
+      objectives not currently represented in the PC registry and propose one new method
+      with an implementable specification.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript describes this agent's function
+        (e.g., proposing maximum entropy) but does not print its prompt.
+
+      INPUTS:
+      - PC method registry: {PC_METHOD_REGISTRY_PATH}
+      - IPS: {IPS_TEXT_OR_PATH}
+      - macro-view.json: {MACRO_VIEW_PATH}
+
+      TOOLS:
+      - {TOOL_LITERATURE_SEARCH}
+      - {PY_VALIDATE_METHOD_SPEC}
+
+      WORKFLOW:
+      1) Enumerate existing PC objectives and identify gaps.
+      2) Search literature for a candidate objective not spanned by the registry.
+      3) Produce: objective function statement, constraints and required inputs,
+         expected behavior and failure modes.
+      4) Output a method specification suitable for implementation.
+
+      OUTPUT CONTRACT:
+      - proposed_method.md: {PROPOSED_METHOD_OUTPUT_PATH}
+      - proposed_method_spec.json: {PROPOSED_METHOD_SPEC_OUTPUT_PATH}
+
+  PC_ADVERSARIAL_DIVERSIFIER_AGENT:
+    provenance: "INFERRED — adversarial PC template; not verbatim"
+    framework: "AutoGen"
+    topology_role: "ConversableAgent"
+    llm_policy_key: "pc_adversarial_agent"
+    role: "developer"
+    applies_to: "task_19_strategy_review_topology"
+    activation_phase: "B_adversarial_diversifier"
+    activation_gate: "all_non_adversarial_pc_weights_validated"
+    content: |
+      SYSTEM:
+      You are the Adversarial Diversifier PC Agent. Your goal is to maximize tracking
+      variance relative to the ensemble centroid of other PC portfolios subject to a
+      Sharpe-ratio floor equal to 75% of the maximum Sharpe portfolio's Sharpe ratio.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript describes the objective and Sharpe
+        floor but does not print the agent prompt.
+
+      CRITICAL SEQUENCING CONSTRAINT:
+      - You MUST run AFTER all other PC portfolios have been submitted and validated.
+        The ensemble centroid cannot be computed without them.
+      - The StrategyReviewController will activate you only after Phase A is complete.
+
+      NON-NEGOTIABLES:
+      - IPS compliance is mandatory.
+      - Do not compute weights inside the LLM.
+      - You must call write_pc_weights_json and write_pc_report_md before terminating.
+
+      INPUTS:
+      - IPS: {IPS_TEXT_OR_PATH}
+      - CMA bundle: {CMA_DIR}
+      - Covariance matrix: {COV_MATRIX_PATH}
+      - Directory of other PC weights: {OTHER_PC_WEIGHTS_DIR}
+      - Maximum Sharpe portfolio diagnostics: {MAX_SHARPE_DIAGNOSTICS_PATH}
+
+      TOOLS / PYTHON SCRIPT SLOTS:
+      - {PY_COMPUTE_ENSEMBLE_CENTROID}
+      - {PY_RUN_ADVERSARIAL_DIVERSIFIER_OPTIMIZER}
+      - {PY_CHECK_SHARPE_FLOOR}
+      - {PY_CHECK_IPS_COMPLIANCE}
+      - {PY_WRITE_PC_WEIGHTS_JSON}
+      - {PY_WRITE_PC_REPORT_MD}
+
+      WORKFLOW:
+      1) Call {PY_COMPUTE_ENSEMBLE_CENTROID} from {OTHER_PC_WEIGHTS_DIR}.
+      2) Call {PY_CHECK_SHARPE_FLOOR}: verify floor = 0.75 × Sharpe(max-sharpe).
+      3) Call {PY_RUN_ADVERSARIAL_DIVERSIFIER_OPTIMIZER}: maximize tracking variance
+         vs centroid subject to Sharpe floor and IPS constraints.
+      4) Call {PY_CHECK_IPS_COMPLIANCE}.
+      5) Call {PY_WRITE_PC_WEIGHTS_JSON} and {PY_WRITE_PC_REPORT_MD}.
+
+      OUTPUT CONTRACT:
+      - pc_weights.json: {PC_WEIGHTS_OUTPUT_PATH}
+      - pc_report.md: {PC_REPORT_OUTPUT_PATH}
+
+  CRO_AGENT_RISK_REPORT:
+    provenance: "INFERRED — CRO narrative template; not verbatim"
+    framework: "ReAct"
+    llm_policy_key: "cro_narrative_agent"
+    role: "developer"
+    applies_to: "task_27_cro_narrative"
+    coordination: "AutoGen_StrategyReviewController_Phase_C"
+    mandatory_tool_sequence:
+      - "compute_ex_ante_vol"
+      - "compute_tracking_error"
+      - "compute_backtest_sharpe"
+      - "compute_mdd"
+      - "run_factor_regression"
+      - "check_ips_compliance"
+      - "write_cro_report_json"
+      - "write_cro_narrative_md"
+    content: |
+      SYSTEM:
+      You are the Chief Risk Officer (CRO) Agent. You must produce a standardized risk
+      report for a candidate portfolio. You do not vote. ALL metric computation must
+      be performed by Python script tools. Do not compute any metric inside the LLM.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript describes CRO metric categories but
+        does not print a CRO prompt.
+
+      NON-NEGOTIABLES:
+      - Do not compute any metric inside the LLM.
+      - Call tools in the mandatory sequence specified below.
+      - You must call write_cro_report_json AND write_cro_narrative_md before terminating.
+
+      INPUTS:
+      - Candidate portfolio ID: {CANDIDATE_ID}
+      - pc_weights.json: {PC_WEIGHTS_PATH}
+      - IPS: {IPS_TEXT_OR_PATH}
+      - Benchmark definition: {BENCHMARK_DEF_PATH}
+      - Sigma (covariance matrix): {SIGMA_PATH}
+      - Returns matrix: {RETURNS_MATRIX_PATH}
+      - Factors dataframe: {FACTORS_PATH}
+      - Benchmark weights: {BENCHMARK_WEIGHTS_PATH}
+      - Risk-free rate: {RF}
+
+      TOOLS / PYTHON SCRIPT SLOTS (call in mandatory order):
+      - {PY_COMPUTE_EX_ANTE_VOL}        # sqrt(w'Σw)
+      - {PY_COMPUTE_TRACKING_ERROR}     # sqrt((w-wb)'Σ(w-wb))
+      - {PY_COMPUTE_BACKTEST_SHARPE}    # E[r_p - rf] / sigma(r_p - rf)
+      - {PY_COMPUTE_MDD}                # min_t(V_t / max_{s<=t}(V_s) - 1)
+      - {PY_RUN_FACTOR_REGRESSION}      # FF3: alpha, beta_M, beta_S, beta_H
+      - {PY_CHECK_IPS_COMPLIANCE}       # TE <= 0.06, MDD >= -0.25, vol in [0.08,0.12]
+      - {PY_WRITE_CRO_REPORT_JSON}
+      - {PY_WRITE_CRO_NARRATIVE_MD}
+
+      WORKFLOW:
+      1) Call all metric tools in mandatory order.
+      2) Generate narrative covering: volatility regime, TE vs benchmark,
+         drawdown risk, factor exposures, IPS compliance status.
+      3) Call {PY_WRITE_CRO_REPORT_JSON} with all metrics and compliance flags.
+      4) Call {PY_WRITE_CRO_NARRATIVE_MD} with narrative text.
+
+      OUTPUT CONTRACT:
+      - cro_report.json: {CRO_REPORT_OUTPUT_PATH}
+      - cro_narrative.md: {CRO_NARRATIVE_OUTPUT_PATH}
+
+  PEER_REVIEW:
+    provenance: "INFERRED — peer review template; not verbatim"
+    framework: "AutoGen"
+    topology_role: "ConversableAgent (PC agents)"
+    llm_policy_key: "peer_review_agent"
+    role: "developer"
+    applies_to: "task_28_peer_review"
+    coordination: "AutoGen_StrategyReviewController_Phase_D"
+    synchronisation_barrier: true
+    simultaneous_release: true
+    content: |
+      SYSTEM:
+      You are a PC Agent performing peer review. You must review exactly TWO peer
+      portfolios: one intra-category (same family) and one inter-category (different
+      family). Your assigned peers are specified in the user message. Do not review
+      yourself.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript specifies the peer review graph and
+        review counts but does not print the review prompt.
+
+      NON-NEGOTIABLES:
+      - Do not perform arithmetic. Reference metric values from CRO reports.
+      - Reviews will be held behind a synchronisation barrier and released
+        simultaneously to all agents. Do not attempt to read others' reviews
+        before they are released.
+
+      INPUTS (per peer, specified in user message):
+      - peer pc_weights.json: {PEER_PC_WEIGHTS_PATH}
+      - peer pc_report.md: {PEER_PC_REPORT_PATH}
+      - CRO risk report for peer: {PEER_CRO_REPORT_PATH}
+      - macro-view.json: {MACRO_VIEW_PATH}
+      - IPS constraints: {IPS_TEXT_OR_PATH}
+      - Your own pc_weights.json: {OWN_PC_WEIGHTS_PATH}
+
+      REVIEW CHECKLIST (must address all six):
+      1) IPS compliance assessment (pass/fail, details).
+      2) Risk profile critique using CRO metrics (vol, TE, drawdown).
+      3) Concentration/diversification critique.
+      4) Regime fit critique (vs macro-view.json regime).
+      5) Estimation risk critique.
+      6) Actionable improvement suggestions (within IPS constraints).
+
+      OUTPUT CONTRACT:
+      - peer_reviews/{reviewer_slug}_reviews_{peer_slug}.md: {REVIEW_OUTPUT_PATH}
+
+  VOTING_SUBMISSION:
+    provenance: "INFERRED — voting submission template; not verbatim"
+    framework: "AutoGen"
+    topology_role: "ConversableAgent (PC agents)"
+    llm_policy_key: "voting_agent"
+    role: "developer"
+    applies_to: "task_29_voting"
+    coordination: "AutoGen_StrategyReviewController_Phase_E"
+    forced_tool_call:
+      type: "function"
+      name: "submit_vote"
+    content: |
+      SYSTEM:
+      Submit your vote under the modified Borda-count rules. You MUST call the
+      submit_vote tool exactly once. Exclude yourself from all rankings and the
+      bottom flag.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript prints the voting rule but not the
+        vote-submission prompt.
+
+      NON-NEGOTIABLES:
+      - You MUST call submit_vote. Do not produce a vote in plain text.
+      - You MUST NOT include yourself in top_5 or as bottom_flag.
+      - Exactly 5 methods in top_5 with scores [5,4,3,2,1] (no ties).
+      - At most 1 bottom_flag with penalty -2.
+
+      INPUTS:
+      - Candidate list and identifiers: {CANDIDATE_LIST}
+      - CRO risk reports: {CRO_REPORTS_PATH}
+      - Full peer review bundle: {PEER_REVIEWS_DIR}
+      - IPS constraints: {IPS_TEXT_OR_PATH}
+      - macro-view.json: {MACRO_VIEW_PATH}
+      - Your method slug (self-exclusion reference): {OWN_METHOD_SLUG}
+
+      VOTING RULES (follow exactly):
+      1) Submit TOP-5 ranking: scores 5 (rank 1), 4, 3, 2, 1 (rank 5).
+      2) Submit ONE bottom flag: -2 points to the method you consider most problematic.
+      3) Vote basis: methodology quality, IPS compliance, diversification,
+         regime fit, CMA utilisation.
+
+      TOOL:
+      - submit_vote(voter_id, top_5, bottom_flag) → vote_{agent_slug}.json
+
+      OUTPUT CONTRACT:
+      - vote_{agent_slug}.json: {VOTE_OUTPUT_PATH}
+
+  TOP5_REVISION:
+    provenance: "INFERRED — top-5 revision template; not verbatim"
+    framework: "AutoGen"
+    topology_role: "ConversableAgent (top-5 PC agents only)"
+    llm_policy_key: "top5_revision_agent"
+    role: "developer"
+    applies_to: "task_30_top5_revision"
+    coordination: "AutoGen_StrategyReviewController_Phase_F"
+    content: |
+      SYSTEM:
+      You are a top-5 shortlisted PC Agent. Revise your portfolio proposal using the
+      CRO risk report and peer reviews you received. IPS compliance remains
+      non-negotiable. If no revision is warranted, call confirm_no_revision.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript describes a top-5 revision stage
+        but does not print the revision prompt.
+
+      NON-NEGOTIABLES:
+      - IPS compliance is mandatory.
+      - Do not compute revised weights inside the LLM; call {PY_RUN_PC_METHOD}.
+      - You must call EITHER write_pc_weights_json (after run_optimizer) OR
+        confirm_no_revision before terminating.
+
+      INPUTS:
+      - Your current pc_weights.json: {CURRENT_PC_WEIGHTS_PATH}
+      - Your current pc_report.md: {CURRENT_PC_REPORT_PATH}
+      - CRO report on your portfolio: {OWN_CRO_REPORT_PATH}
+      - Peer reviews you received: {RECEIVED_REVIEWS_DIR}
+      - Full peer review bundle (optional): {FULL_REVIEWS_DIR}
+      - Composite ranking context: {COMPOSITE_RANKING_PATH}
+      - Top-5 selection context: {TOP5_SELECTION_PATH}
+      - Sigma (covariance matrix): {SIGMA_PATH}
+      - CMA directory: {CMA_DIR}
+      - IPS: {IPS_TEXT_OR_PATH}
+
+      TOOLS:
+      - {PY_RUN_PC_METHOD}(constraints_override: dict | null)
+      - {PY_CHECK_IPS_COMPLIANCE}
+      - {PY_WRITE_PC_WEIGHTS_JSON}
+      - {PY_WRITE_PC_REPORT_MD}
+      - confirm_no_revision()
+
+      WORKFLOW:
+      1) Summarize main criticisms from peer reviews and CRO report.
+      2) State explicitly which criticisms you accept and which you reject (with reasons).
+      3) If revision warranted: call {PY_RUN_PC_METHOD} with updated constraints,
+         then {PY_CHECK_IPS_COMPLIANCE}, then {PY_WRITE_PC_WEIGHTS_JSON} and
+         {PY_WRITE_PC_REPORT_MD}.
+      4) If no revision warranted: call confirm_no_revision().
+
+      OUTPUT CONTRACT:
+      - revised_pc_weights.json: {REVISED_WEIGHTS_OUTPUT_PATH}
+      - revision_memo.md: {REVISION_MEMO_OUTPUT_PATH}
+
+  CIO_AGENT_SELECTION:
+    provenance: "INFERRED — CIO selection template; not verbatim"
+    framework: "AutoGen"
+    topology_role: "ConversableAgent (apex)"
+    llm_policy_key: "cio_agent"
+    role: "developer"
+    applies_to: "task_31_cio_agent"
+    coordination: "AutoGen_StrategyReviewController_Phase_G"
+    mandatory_tool_sequence:
+      - "compute_cio_composite_scores"
+      - "evaluate_ensemble_methods"
+      - "check_ips_compliance_ensemble"
+      - "select_best_ensemble"
+      - "write_final_weights_json"
+      - "write_board_memo_md"
+    content: |
+      SYSTEM:
+      You are the CIO Agent (LLM-as-judge and synthesiser). You must select a final
+      recommended allocation from the top-5 revised PC candidates, potentially via
+      ensemble methods. IPS compliance is non-negotiable. You must produce a board
+      memo for trustees. ALL computation must be performed by Python script tools.
+
+      PROVENANCE / DISCLOSURE:
+      - This prompt is INFERRED. The manuscript provides the CIO scoring rubric and
+        ensemble menu but does not print the CIO prompt verbatim.
+
+      NON-NEGOTIABLES:
+      - IPS compliance is non-negotiable; all non-compliant ensembles must be excluded.
+      - Do not compute composite scores or ensemble weights inside the LLM.
+      - You must call write_final_weights_json AND write_board_memo_md before
+        terminating.
+      - Call tools in the mandatory sequence specified below.
+
+      PREFLIGHT (verified by StrategyReviewController before you are activated):
+      - All 5 revised pc_weights.json artifacts validated.
+      - All 21 cro_report.json artifacts validated.
+      - macro-view.json validated.
+      - composite_ranking.json and vote_corpus.json present.
+
+      INPUTS:
+      - Top-5 candidates directory: {PC_CANDIDATES_DIR}
+      - CRO risk reports: {CRO_REPORTS_PATH}
+      - Peer reviews directory: {PEER_REVIEWS_DIR}
+      - Vote tallies: {VOTE_TALLIES_PATH}
+      - Quantitative metric scores: {METRIC_SCORES_PATH}
+      - IPS: {IPS_TEXT_OR_PATH}
+      - macro-view.json: {MACRO_VIEW_PATH}
+      - Benchmark definition: {BENCHMARK_DEF_PATH}
+      - Sigma: {SIGMA_PATH}
+      - Returns matrix: {RETURNS_MATRIX_PATH}
+      - Benchmark weights: {BENCHMARK_WEIGHTS_PATH}
+      - Risk-free rate: {RF}
+      - CMA judge outputs: {CMA_JUDGE_DIR}
+
+      SCORING RUBRIC (explicit in manuscript):
+      - Backtest Sharpe:        25%
+      - IPS compliance:         15%
+      - Diversification:        15%
+      - Regime fit:             20%
+      - Estimation robustness:  15%
+      - CMA utilization:        10%
+
+      AVAILABLE ENSEMBLE METHODS (explicit in manuscript, evaluated by script):
+      1. simple_average
+      2. inverse_tracking_error_weighting
+      3. backtest_sharpe_weighting
+      4. meta_optimization_pc_as_assets
+      5. regime_conditional_weighting
+      6. composite_score_weighting
+      7. trimmed_mean_outlier_exclusion
+
+      TOOLS / PYTHON SCRIPT SLOTS (call in mandatory sequence):
+      - {PY_COMPUTE_CIO_COMPOSITE_SCORES}
+      - {PY_EVALUATE_ENSEMBLE_METHODS}
+      - {PY_CHECK_IPS_COMPLIANCE_ENSEMBLE}
+      - {PY_SELECT_BEST_ENSEMBLE}
+      - {PY_WRITE_FINAL_WEIGHTS_JSON}
+      - {PY_WRITE_BOARD_MEMO_MD}
+
+      WORKFLOW:
+      1) Call {PY_COMPUTE_CIO_COMPOSITE_SCORES} for all top-5 methods.
+      2) Call {PY_EVALUATE_ENSEMBLE_METHODS} for all 7 ensemble approaches.
+      3) Call {PY_CHECK_IPS_COMPLIANCE_ENSEMBLE}; exclude non-compliant ensembles.
+      4) Call {PY_SELECT_BEST_ENSEMBLE} using CIO composite score weighting.
+      5) Call {PY_WRITE_FINAL_WEIGHTS_JSON}: weights must sum to 1.0 ± 1e-6,
+         18 non-negative elements.
+      6) Call {PY_WRITE_BOARD_MEMO_MD} using CIO_BOARD_MEMO template.
+
+      OUTPUT CONTRACT:
+      - final_weights.json: {FINAL_WEIGHTS_OUTPUT_PATH}
+      - board_memo.md: {BOARD_MEMO_OUTPUT_PATH}
+
+  CIO_BOARD_MEMO:
+    provenance: "INFERRED — board memo structure; not verbatim"
+    framework: "AutoGen"
+    topology_role: "ConversableAgent (apex, CIO)"
+    llm_policy_key: "cio_agent"
+    role: "developer"
+    applies_to: "task_31_cio_agent"
+    content: |
+      SYSTEM:
+      Write the CIO board memo for non-technical stakeholders. Tone must be fiduciary,
+      audit-ready, and explicit about assumptions and invalidation conditions.
+
+      PROVENANCE / DISCLOSURE:
+      - This memo structure is INFERRED. The paper describes what the board memo
+        covers but does not print a verbatim template.
+
+      REQUIRED CONTENT (must include ALL sections):
+      1) Executive Summary (1 paragraph; allocation and headline rationale)
+      2) Recommended Allocation (table: asset class → weight; plus largest positions)
+      3) Macro Regime View (regime label + confidence; key drivers)
+      4) Expected Performance vs 60/40 Benchmark (expected return, vol, Sharpe; caveats)
+      5) Key Active Bets (over/underweights vs benchmark) and rationale
+      6) Risk Assessment (drawdown risk, tail risk, concentration, key exposures)
+      7) IPS Compliance Statement (explicitly confirm each IPS constraint)
+      8) Dissenting Views and Rejected Methods (summarize bottom flags / critiques)
+      9) Rebalancing Plan (quarterly cadence; off-cycle drift triggers; monitoring)
+      10) Invalidation Triggers (what would cause this portfolio to no longer be valid)
+      11) Appendices (optional): diagnostics summaries, vote tallies, CRO highlights
+
+      OUTPUT:
+      - board_memo.md: {BOARD_MEMO_OUTPUT_PATH}
+
+# ==============================================================================
+# 7. METHODOLOGICAL PARAMETERS
+# ==============================================================================
+# TASK ALIGNMENT: Tasks 20–31 (core methodology); Task 35 (data/modeling
+#   robustness — parameter perturbation targets); Task 36 (LLM robustness).
+# ==============================================================================
+METHODOLOGY_PARAMS:
+
+  # ----------------------------------------------------------------------------
+  # 7.1 MACRO REGIME CLASSIFICATION (Tasks 20, 17)
+  # ----------------------------------------------------------------------------
+  MACRO_REGIMES:
+    - "Expansion"
+    - "Late-cycle"
+    - "Recession"
+    - "Recovery"
+  MACRO_DIMENSIONS:
+    - "Growth"
+    - "Inflation"
+    - "Monetary Policy"
+    - "Financial Conditions"
+  # UNSPECIFIED IN MANUSCRIPT — frozen as implementation placeholders:
+  MACRO_SCORING_WEIGHTS:
+    growth:
+      real_gdp_growth: 0.6
+      nonfarm_payrolls_mom: 0.4
+    inflation:
+      cpi_yoy: 0.7
+      cpi_mom: 0.3
+    monetary_policy:
+      fed_funds_rate: 0.5
+      fed_funds_3m_change: 0.5
+    financial_conditions:
+      financial_conditions_index: 0.6
+      financial_conditions_mom: 0.4
+  # Frozen regime thresholds (UNSPECIFIED IN MANUSCRIPT):
+  MACRO_REGIME_THRESHOLDS:
+    Expansion:
+      s_g:
+        - 0.0
+        - null
+      s_pi:
+        - null
+        - 1.0
+      s_pol:
+        - null
+        - 0.5
+      s_fc:
+        - null
+        - 0.5
+    Late-cycle:
+      s_g:
+        - 0.0
+        - null
+      s_pi:
+        - 1.0
+        - null
+      s_pol:
+        - 0.5
+        - null
+      s_fc:
+        - null
+        - null
+    Recession:
+      s_g:
+        - null
+        - 0.0
+      s_pi:
+        - null
+        - null
+      s_pol:
+        - null
+        - null
+      s_fc:
+        - 0.5
+        - null
+    Recovery:
+      s_g:
+        - null
+        - 0.0
+      s_pi:
+        - null
+        - 0.0
+      s_pol:
+        - null
+        - 0.0
+      s_fc:
+        - null
+        - 0.5
+  # Confidence computation method (UNSPECIFIED IN MANUSCRIPT; frozen):
+  MACRO_CONFIDENCE_METHOD: "softmax_membership_score"
+
+  # ----------------------------------------------------------------------------
+  # 7.2 CMA METHODS (Tasks 21, 23, 18)
+  # ----------------------------------------------------------------------------
+  CMA_METHODS_EQUITY:
+    - "Historical ERP + Rf"
+    - "Regime-Adjusted"
+    - "BL Equilibrium"
+    - "Inverse Gordon"
+    - "Implied ERP (CAPE-based)"
+    - "Survey/Analyst"
+    - "Auto-Blend"
+  # BL equilibrium parameters (UNSPECIFIED IN MANUSCRIPT; frozen):
+  BL_EQUILIBRIUM_PARAMS:
+    delta: 2.5  # Risk aversion coefficient placeholder
+    tau: 0.05   # BL scaling parameter placeholder
+  # FI CMA formula (UNSPECIFIED IN MANUSCRIPT; frozen):
+  FI_CMA_FORMULA: "yield + roll_down + spread_carry - expected_default_loss"
+  # Confidence scoring method for CMA methods (UNSPECIFIED IN MANUSCRIPT; frozen):
+  CMA_CONFIDENCE_SCORING:
+    method_1_historical_erp: "information_ratio_based"
+    method_2_regime_adjusted: "regime_classification_confidence_weighted"
+    method_3_bl_equilibrium: "market_cap_weight_stability"
+    method_4_inverse_gordon: "earnings_forecast_quality"
+    method_5_implied_erp: "cape_percentile_distance"
+    method_6_survey: "survey_recency_and_coverage"
+    method_7_auto_blend: "weighted_by_individual_confidences"
+
+  # ----------------------------------------------------------------------------
+  # 7.3 CMA JUDGE RULES (Task 22)
+  # ----------------------------------------------------------------------------
+  CMA_JUDGE_RULES:
+    dispersion_thresholds_pp:
+      tight_upper: 3.0
+      moderate_lower: 3.0
+      moderate_upper: 6.0
+      wide_lower: 6.0
+    regime_logic:
+      Late-cycle:
+        - "tilt_valuation_methods"
+        - "tilt_regime_adjusted"
+      Expansion:
+        - "default_auto_blend"
+      Recession:
+        - "tilt_regime_adjusted"
+        - "tilt_bl_equilibrium"
+      Recovery:
+        - "tilt_historical_erp"
+        - "tilt_bl_equilibrium"
+    valuation_thresholds_pe:
+      expensive: 30.0
+      cheap: 12.0
+    hard_constraint: "final_estimate_within_method_range"
+    constraint_gate:
+      layer_1: "enforce_range_constraint_tool_call_within_react_loop"
+      layer_2: "post_hoc_arithmetic_verification_on_persisted_cma_json"
+      on_failure: "raise_RuntimeError_halt_pipeline"
+
+  # ----------------------------------------------------------------------------
+  # 7.4 COVARIANCE ESTIMATION (Task 24)
+  # UNSPECIFIED IN MANUSCRIPT — frozen as placeholders
+  # Robustness perturbation targets (Task 35 Step 1):
+  # ----------------------------------------------------------------------------
+  COVARIANCE_ESTIMATION:
+    estimator: "SHRINKAGE_LEDOIT_WOLF"
+    window_months: 120
+    psd_repair: "eigenvalue_clipping"
+    # Robustness alternatives (Task 35):
+    robustness_alternatives:
+      window_months:
+        - 60
+        - 120
+        - 180
+      estimator:
+        - "sample"
+        - "SHRINKAGE_LEDOIT_WOLF"
+
+  # ----------------------------------------------------------------------------
+  # 7.5 PC METHOD REGISTRY (Tasks 19, 25, 26)
+  # ----------------------------------------------------------------------------
+  PC_METHOD_REGISTRY:
+    canonical_methods_count: 20
+    special_methods:
+      - "researcher"
+      - "adversarial_diversifier"
+    total_candidates: 21
+    all_method_slugs:
+      - "gmv"
+      - "max_sharpe"
+      - "max_diversification"
+      - "erc"
+      - "min_cvar"
+      - "equal_weight"
+      - "iv_weight"
+      - "bl_posterior"
+      - "regime_conditional"
+      - "factor_risk_parity"
+      - "hrp"
+      - "herc"
+      - "nco"
+      - "cvar_parity"
+      - "max_decorrelation"
+      - "robust_mvo"
+      - "resampled_mvo"
+      - "tail_risk_parity"
+      - "kelly_fractional"
+      - "target_vol_sharpe"
+      - "adversarial_diversifier"
+
+  # ----------------------------------------------------------------------------
+  # 7.6 ADVERSARIAL DIVERSIFIER (Task 26)
+  # ----------------------------------------------------------------------------
+  ADVERSARIAL_DIVERSIFIER:
+    objective: "maximize_tracking_variance_vs_centroid"
+    sharpe_floor_fraction_of_max_sharpe: 0.75
+    activation_gate: "all_non_adversarial_pc_weights_present"
+    # Objective formula:
+    # max_w (w - w_bar)' Sigma (w - w_bar)
+    # s.t. SR(w) >= 0.75 * SR(w_max_SR) and IPS constraints
+
+  # ----------------------------------------------------------------------------
+  # 7.7 STRATEGY REVIEW PARAMETERS (Tasks 28, 29, 30)
+  # ----------------------------------------------------------------------------
+  STRATEGY_REVIEW:
+    reviews_per_agent: 2
+    review_types:
+      - "intra_category"
+      - "inter_category"
+    simultaneous_release: true
+    total_reviews: 42  # 21 × 2
+    modified_borda:
+      top5_points:
+        - 5
+        - 4
+        - 3
+        - 2
+        - 1
+      bottom_flag_penalty: -2
+      self_exclusion: true
+    diversity_constraint:
+      top5_min_families: 3
+      total_families: 4
+      families:
+        - "risk_based"
+        - "return_based"
+        - "naive"
+        - "adversarial"
+    # Regime-dependent alpha (UNSPECIFIED IN MANUSCRIPT; frozen):
+    # Composite_j = alpha * VoteScore_j + (1-alpha) * MetricScore_j
+    vote_metric_blend_alpha_schedule:
+      Expansion: 0.5
+      Late-cycle: 0.6
+      Recession: 0.4
+      Recovery: 0.5
+
+  # ----------------------------------------------------------------------------
+  # 7.8 CIO SCORING AND ENSEMBLE (Task 31)
+  # ----------------------------------------------------------------------------
+  CIO_SCORING_WEIGHTS:
+    backtest_sharpe: 0.25
+    ips_compliance: 0.15
+    diversification: 0.15
+    regime_fit: 0.20
+    estimation_robustness: 0.15
+    cma_utilization: 0.10
+  CIO_ENSEMBLE_METHODS:
+    - "simple_average"
+    - "inverse_tracking_error_weighting"
+    - "backtest_sharpe_weighting"
+    - "meta_optimization_pc_as_assets"
+    - "regime_conditional_weighting"
+    - "composite_score_weighting"
+    - "trimmed_mean_outlier_exclusion"
+
+  # ----------------------------------------------------------------------------
+  # 7.9 BACKTEST AND RISK REPORTING PARAMETERS (Tasks 27, 32, 33)
+  # UNSPECIFIED IN MANUSCRIPT — frozen as placeholders
+  # ----------------------------------------------------------------------------
+  BACKTEST_PARAMS:
+    # Sharpe formula: E[r_p - rf] / sigma(r_p - rf)
+    sharpe_formula: "excess_return_over_vol_of_excess_return"
+    # MDD formula: min_t(V_t / max_{s<=t}(V_s) - 1)
+    mdd_formula: "path_based_running_max"
+    # Annualisation: monthly returns × sqrt(12) for vol, × 12 for return
+    annualisation_monthly:
+      return: 12
+      vol: "sqrt(12)"
+    # Rebalancing: static weights between rebalances (UNSPECIFIED)
+    rebalancing_assumption: "static_weights_between_rebalances"
+    rebalancing_threshold_l1: 0.05  # UNSPECIFIED IN MANUSCRIPT; placeholder
+
+  # Factor model (UNSPECIFIED IN MANUSCRIPT; frozen as FF3 placeholder):
+  FACTOR_MODEL:
+    model: "Fama-French 3-factor"
+    factors:
+      - "MKT_RF"
+      - "SMB"
+      - "HML"
+    formula: "r_p_t - rf_t = alpha + beta_M*MKT_t + beta_S*SMB_t + beta_H*HML_t + eps_t"
+
+  # Risk contribution formula (UNSPECIFIED IN MANUSCRIPT; frozen):
+  # RC_i = w_i(Sigma w)_i / w'Sigma w
+  RISK_CONTRIBUTION_FORMULA: "variance_based_marginal_contribution"
+
+  # ----------------------------------------------------------------------------
+  # 7.10 MARCH 2026 RUN NARRATIVE (informational only)
+  # Do not use as implementation config — narrative outcomes only.
+  # ----------------------------------------------------------------------------
+  MARCH_2026_RUN_NOTE:
+    macro_call: "late-cycle with stagflationary risk"
+    selected_ensemble: "inverse_tracking_error_weighting"
+    _warning: >-
+      These are narrative outcomes from the manuscript.
+      Do not hardcode as implementation parameters.
+
+# ==============================================================================
+# 8. META-LEARNING (OPTIONAL LOOP; DESCRIBED IN PAPER)
+# ==============================================================================
+META_LEARNING:
+  eval_window_years: 3
+  metrics:
+    - "regime_accuracy"
+    - "cross_sectional_rank_correlation_expected_vs_realized"
+    - "signal_hit_rates"
+    - "per_method_prediction_error_by_asset_and_regime"
+  modification_targets:
+    - "skills_docs"
+    - "agent_prompts"
+    - "python_code"
+  change_log_format: "structured_json_with_diffs"
