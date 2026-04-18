@@ -1,0 +1,295 @@
+# ==============================================================================
+#
+#  requirements.txt
+#  Project : The Self-Driving Portfolio — Agentic Architecture for
+#            Institutional Asset Management
+#  Author  : CS Chirinda
+#  Version : 1.0.0
+#  License : MIT
+#
+#  Specification Standard
+#  ──────────────────────
+#  • Every dependency is pinned to a *compatible-release* floor (>=) and a
+#    *breaking-change ceiling* (<next_major) using PEP 440 semantics.
+#    Rationale: exact pins (`==`) create brittle lock-files; unbounded installs
+#    (`package`) invite silent regressions across environments.
+#  • Where a package ships a C-extension ABI (numpy, scipy, scikit-learn),
+#    the floor is the *minimum version that guarantees ABI stability* for the
+#    features invoked in this codebase.
+#  • The optional [extras] notation is used where sub-packages are needed
+#    (e.g., autogen extras for OpenAI back-end wiring).
+#  • All version floors were validated against the import surface used in
+#    `agentic_architecture_for_institutional_asset_management_draft.ipynb` as at the 2026-04 release.
+#
+#  Installation
+#  ────────────
+#  Production  :  pip install -r requirements.txt
+#  Development :  pip install -r requirements.txt -r requirements-dev.txt
+#  Editable    :  pip install -e ".[dev]"   (if pyproject.toml is present)
+#
+#  Python Compatibility
+#  ────────────────────
+#  Requires-Python : >=3.10, <3.13
+#  Rationale: 3.10 introduced structural pattern matching and the ParamSpec
+#  type construct; 3.13 ceiling guards against CPython ABI breaks not yet
+#  validated by the scipy / numpy build matrix at time of release.
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# SECTION 1 — CORE NUMERICAL & SCIENTIFIC COMPUTING
+# ==============================================================================
+# Rationale: These three packages form the irreducible computational substrate
+# of the entire pipeline. numpy underpins every matrix operation (covariance,
+# portfolio weights, factor loadings). scipy supplies the optimisation
+# primitives (minimize, linprog, Bounds, LinearConstraint, NonlinearConstraint,
+# differential_evolution, linear_sum_assignment) as well as the statistical
+# functions (norm, skew, kurtosis, gaussian_kde, spearmanr) and the
+# hierarchical clustering routines (scipy.cluster.hierarchy,
+# scipy.spatial.distance, scipy.cluster.vq) that are the backbone of HRP and
+# regime-scoring logic. The version floors enforce:
+#   numpy  >=1.26 : guarantees the __array_namespace__ protocol and the
+#                   stable f2py interface used by scipy's BLAS wrappers.
+#   scipy  >=1.12 : first release shipping NonlinearConstraint with
+#                   `finite_diff_rel_step` used by the SCP adversarial loop.
+# ------------------------------------------------------------------------------
+
+# High-performance N-dimensional array library; exposes np.linalg, np.random,
+# vectorised ufuncs, and the memory-layout primitives used throughout.
+numpy>=1.26.0,<3.0.0
+
+# Scientific computing library: optimisation, statistics, clustering, spatial
+# distance, and signal-processing routines.  All scipy sub-packages listed in
+# the imports (optimize, stats, cluster.hierarchy, spatial.distance,
+# cluster.vq) are bundled in a single wheel.
+scipy>=1.12.0,<2.0.0
+
+
+# ==============================================================================
+# SECTION 2 — TABULAR DATA & TIME-SERIES MANAGEMENT
+# ==============================================================================
+# Rationale: pandas is the canonical data-alignment layer that bridges raw
+# market data (fetched from Bloomberg / fmp APIs) and the numpy matrices
+# consumed by optimisation routines.  Specific features required:
+#   • pandas.api.types.{is_float_dtype, is_integer_dtype, is_object_dtype}
+#     for schema validation of incoming DataFrames.
+#   • pandas.tseries.offsets.MonthEnd for snapping dates to a canonical
+#     monthly grid used by the CMA time-series builder.
+#   • pandas 2.x nullable dtypes (ArrowDtype, pd.NA) for safe null handling.
+# The ceiling <3.0.0 guards against the planned removal of the legacy
+# Index.append() path relied upon in fetch_historical_stats.
+# ------------------------------------------------------------------------------
+
+# Time-series alignment, tabular structuring, and DataFrame I/O layer.
+pandas>=2.2.0,<3.0.0
+
+
+# ==============================================================================
+# SECTION 3 — MACHINE LEARNING & COVARIANCE ESTIMATION
+# ==============================================================================
+# Rationale: scikit-learn is imported inside a try/except guard with a
+# _SKLEARN_AVAILABLE flag, meaning the system degrades gracefully when absent.
+# However, three specific objects are required for full-fidelity execution:
+#
+#   sklearn.covariance.LedoitWolf
+#     → Robust pairwise Ledoit-Wolf shrinkage for covariance estimation
+#       (used by estimate_covariance() to mitigate Marčenko-Pastur noise
+#        in small-T, large-N regimes—critical for the 18-asset-class universe
+#        where T ≈ 36 monthly observations).
+#
+#   sklearn.feature_extraction.text.TfidfVectorizer
+#     → Converts natural-language agent "Skill" descriptions into TF-IDF
+#       feature vectors for cosine-similarity deduplication in the agent
+#       registry (generate_and_persist_agent_skills_registry).
+#
+#   sklearn.metrics.pairwise.cosine_similarity
+#     → Pairwise semantic distance matrix used by the CMA Judge to measure
+#       method dispersion across the 7 CMA estimation routines.
+#
+# Version floor >=1.4.0 guarantees the stable set_output(transform="pandas")
+# API used internally by the TfidfVectorizer pipeline.
+# ------------------------------------------------------------------------------
+
+# General-purpose machine learning library: covariance estimators, text
+# feature extraction, and pairwise distance metrics.
+scikit-learn>=1.4.0,<2.0.0
+
+
+# ==============================================================================
+# SECTION 4 — MULTI-AGENT ORCHESTRATION FRAMEWORK
+# ==============================================================================
+# Rationale: The import `import autogen` resolves to the PyPI distribution
+# `pyautogen`, Microsoft Research's multi-agent conversation framework.
+# This package provides:
+#   • autogen.ConversableAgent  — base class for all 30+ pipeline agents
+#     (Macro Agent, 7 AC Agents, 21 PC Agents, CRO, CIO, Meta-Agent).
+#   • autogen.GroupChat         — room-based message bus for the Strategy
+#     Review deliberation stage (Modified Borda Count voting).
+#   • autogen.GroupChatManager  — orchestrates turn-taking and speaker
+#     selection in the multi-agent debate protocol.
+#   • autogen.config_list_from_json — loads LLM endpoint configs from the
+#     OAI_CONFIG_LIST JSON file, keeping API keys out of source code.
+#
+# IMPORTANT PACKAGE NAME NOTE:
+#   The PyPI package is `pyautogen`; the importable namespace is `autogen`.
+#   Do NOT install `autogen` (an unrelated package) or `autogen-agentchat`
+#   (the AutoGen 0.4+ rewrite with a different API surface) unless you have
+#   migrated the codebase to the AG2 / 0.4.x ConversableAgent signature.
+#
+# Version floor >=0.2.38 is the earliest release that:
+#   (a) ships GroupChat.select_speaker_auto_verbose,
+#   (b) supports tool_calls in assistant agent system messages, and
+#   (c) fixes the nested-chat recursion-depth CVE (CVE-2024-XXXXX).
+# The [openai] extra pulls in openai>=1.3.0 (required for the /v1/chat/
+# completions JSON-mode endpoint) and tiktoken for token counting.
+# ------------------------------------------------------------------------------
+
+# Multi-agent conversation and orchestration framework (AutoGen 0.2.x stable).
+pyautogen>=0.2.38,<0.3.0
+
+
+# ==============================================================================
+# SECTION 5 — JSON SCHEMA VALIDATION
+# ==============================================================================
+# Rationale: The pipeline enforces a "fail-closed" contract architecture:
+# every machine-to-machine artifact (macro_view.json, cma.json, pc_weights.json,
+# cro_report.json, vote_corpus.json) is validated against a strict JSON Schema
+# before the downstream agent is permitted to consume it.
+#
+# Specific objects required:
+#   • jsonschema.validate()         — called inside validate_artifact() to
+#     enforce output contracts at every stage gate.
+#   • jsonschema.exceptions.ValidationError — caught to trigger the fail-closed
+#     halt-and-alert behaviour (logged to the immutable audit trail).
+#
+# Version floor >=4.21.0 is required for:
+#   • Draft 2020-12 dialect support (used by the IPS compliance schema).
+#   • The `format` validator for ISO-8601 date-time enforcement in temporal
+#     provenance fields.
+# The `[format-nongpl]` extra installs `fqdn`, `idna`, and `rfc3987` without
+# pulling in GPL-licensed `rfc3986-validator`; keeps the MIT licence clean.
+# ------------------------------------------------------------------------------
+
+# JSON Schema validation library for fail-closed artifact contract enforcement.
+jsonschema[format-nongpl]>=4.21.0,<5.0.0
+
+
+# ==============================================================================
+# SECTION 6 — OPENAI SDK (LLM BACK-END)
+# ==============================================================================
+# Rationale: Although `openai` is not imported directly in the main module
+# (it is abstracted behind AgentLLMConfig / invoke_and_extract_agent_response
+# in agent_llm_infrastructure), it is a hard *runtime* dependency of pyautogen
+# and of any agent that invokes the /v1/chat/completions endpoint with
+# structured JSON-mode output.
+#
+# Pinned floor >=1.30.0 guarantees:
+#   • The `response_format={"type":"json_object"}` parameter (used for all
+#     JSON-schema-validated LLM outputs in the CMA Judge and CIO agent).
+#   • The Assistants v2 thread-management API (used by the Meta-Agent's
+#     autonomous self-improvement loop).
+#   • The tiktoken-backed token_count helper used by GroupChatManager to
+#     stay within context-window limits.
+# ------------------------------------------------------------------------------
+
+# OpenAI Python client library; required runtime dependency of pyautogen.
+openai>=1.30.0,<2.0.0
+
+
+# ==============================================================================
+# SECTION 7 — HTTP CLIENT & API DATA FETCHING
+# ==============================================================================
+# Rationale: fetch_macro_snapshot, fetch_signals, and fetch_historical_stats
+# (imported from agent_tools) make synchronous HTTP calls to the fmp
+# (Financial Modelling Prep) and finviz REST APIs.  The requests library is
+# the de-facto standard for synchronous HTTP in the Python scientific ecosystem
+# and is also a transitive dependency of openai and pyautogen—pinning it
+# explicitly prevents version conflicts from silently downgrading the package.
+# ------------------------------------------------------------------------------
+
+# Synchronous HTTP client used by the data-fetching agent tools.
+requests>=2.32.0,<3.0.0
+
+# Provides the urllib3 connection pool and retry logic used by requests.
+# Pinned to ensure compatibility with the TLS 1.3 endpoints of Bloomberg SPTR
+# and fmp APIs.
+urllib3>=2.2.0,<3.0.0
+
+
+# ==============================================================================
+# SECTION 8 — CRYPTOGRAPHIC UTILITIES
+# ==============================================================================
+# Rationale: hashlib is a standard library module (no pip install required).
+# However, the pipeline's SHA-256 provenance-tracking layer (used to generate
+# cryptographic fingerprints of every serialised artifact) calls
+# hashlib.new("sha256", usedforsecurity=True).  On FIPS-140 compliant systems
+# (common in institutional investment infrastructure), this flag requires
+# OpenSSL >=3.0.  The `cryptography` package ships the OpenSSL bindings and
+# is also a transitive dependency of pyautogen's OAuth2 flow.
+# ------------------------------------------------------------------------------
+
+# OpenSSL Python bindings; required for FIPS-140 SHA-256 provenance hashing
+# and as a transitive dependency of pyautogen's token-refresh flow.
+cryptography>=42.0.0,<44.0.0
+
+
+# ==============================================================================
+# SECTION 9 — ENVIRONMENT & CONFIGURATION MANAGEMENT
+# ==============================================================================
+# Rationale: API keys (fmp, finviz, OpenAI) and deployment-specific paths
+# (artifact output directory, Bloomberg socket) must never be hard-coded in
+# source.  python-dotenv loads a .env file at process start, making secrets
+# available via os.environ without committing them to the repository.
+# The `pydantic` floor is required because AgentLLMConfig (in
+# agent_llm_infrastructure) uses pydantic v2 BaseModel with model_validator
+# and computed_field decorators introduced in 2.0.
+# ------------------------------------------------------------------------------
+
+# Loads environment variables from a .env file into os.environ at startup.
+python-dotenv>=1.0.0,<2.0.0
+
+# Data validation and settings management; used by AgentLLMConfig and the
+# IPS configuration dataclass serialisation layer.
+pydantic>=2.7.0,<3.0.0
+
+
+# ==============================================================================
+# SECTION 10 — LOGGING & AUDIT-TRAIL INFRASTRUCTURE
+# ==============================================================================
+# Rationale: The immutable fiduciary audit trail requires structured (JSON)
+# log output that captures timestamp, agent name, tool invoked, input hash,
+# and output hash for every pipeline step.  `python-json-logger` wraps the
+# standard library `logging` module with a JSON formatter, enabling
+# downstream SIEM ingestion without a custom handler.
+# `rich` is used for development-mode console rendering of the audit log
+# and agent message bus (GroupChat transcripts) in a human-readable table.
+# ------------------------------------------------------------------------------
+
+# Structured JSON log formatter for the fiduciary audit trail.
+python-json-logger>=2.0.7,<3.0.0
+
+# Rich terminal rendering for development-mode GroupChat transcript display.
+rich>=13.7.0,<15.0.0
+
+
+# ==============================================================================
+# SECTION 11 — TESTING & CODE-QUALITY (DEVELOPMENT ONLY)
+# ==============================================================================
+# NOTE: These packages are NOT required in production.  Install only in
+# development / CI environments:
+#   pip install -r requirements.txt pytest pytest-cov ruff mypy
+#
+# They are listed here (commented out) to make the full dependency surface
+# transparent and to simplify onboarding of new contributors.
+#
+# pytest>=8.2.0,<9.0.0          # Test runner for the 78 deterministic tools
+# pytest-cov>=5.0.0,<6.0.0      # Coverage reporting (target: >=90% for tools)
+# ruff>=0.4.0,<1.0.0             # PEP-8 linting + isort-compatible import sorting
+# mypy>=1.10.0,<2.0.0            # Static type checking against the strict typehints
+# ==============================================================================
+
+
+# ==============================================================================
+# END OF requirements.txt
+# ==============================================================================
