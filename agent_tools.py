@@ -1,7 +1,7 @@
 # =============================================================================
 # SELF-DRIVING PORTFOLIO: TOOL REGISTRY — BATCH 1 (TOOLS 1–10)
 # =============================================================================
-# Implements the first 10 tools from the complete 64-tool registry for the
+# Implements the first 10 tools from the complete 78-tool registry for the
 # agentic Strategic Asset Allocation (SAA) pipeline described in:
 #   Ang, Azimbayev, and Kim (2026) — "The Self-Driving Portfolio"
 #
@@ -2848,7 +2848,7 @@ def fetch_signals(
 # =============================================================================
 # SELF-DRIVING PORTFOLIO: TOOL REGISTRY — BATCH 2 (TOOLS 11–20)
 # =============================================================================
-# Implements tools 11–20 from the complete 64-tool registry for the agentic
+# Implements tools 11–20 from the complete 78-tool registry for the agentic
 # Strategic Asset Allocation (SAA) pipeline described in:
 #   Ang, Azimbayev, and Kim (2026) — "The Self-Driving Portfolio"
 #
@@ -5833,7 +5833,7 @@ def classify_dispersion(
 # =============================================================================
 # SELF-DRIVING PORTFOLIO: TOOL REGISTRY — BATCH 3 (TOOLS 21–30)
 # =============================================================================
-# Implements tools 21–30 from the complete 64-tool registry for the agentic
+# Implements tools 21–30 from the complete 78-tool registry for the agentic
 # Strategic Asset Allocation (SAA) pipeline described in:
 #   Ang, Azimbayev, and Kim (2026) — "The Self-Driving Portfolio"
 #
@@ -8257,7 +8257,7 @@ def write_cma_json(
 # =============================================================================
 # SELF-DRIVING PORTFOLIO: TOOL REGISTRY — BATCH 4 (TOOLS 31–40)
 # =============================================================================
-# Implements tools 31–40 from the complete 64-tool registry for the agentic
+# Implements tools 31–40 from the complete 78-tool registry for the agentic
 # Strategic Asset Allocation (SAA) pipeline described in:
 #   Ang, Azimbayev, and Kim (2026) — "The Self-Driving Portfolio"
 #
@@ -10624,7 +10624,7 @@ def write_cro_report_json(
 # =============================================================================
 # SELF-DRIVING PORTFOLIO: TOOL REGISTRY — BATCH 5 (TOOLS 41–50)
 # =============================================================================
-# Implements tools 41–50 from the complete 64-tool registry for the agentic
+# Implements tools 41–50 from the complete 78-tool registry for the agentic
 # Strategic Asset Allocation (SAA) pipeline described in:
 #   Ang, Azimbayev, and Kim (2026) — "The Self-Driving Portfolio"
 #
@@ -12885,7 +12885,7 @@ def confirm_no_revision(
 # =============================================================================
 # SELF-DRIVING PORTFOLIO: TOOL REGISTRY — BATCH 6 (TOOLS 51–60)
 # =============================================================================
-# Implements tools 51–60 from the complete 64-tool registry for the agentic
+# Implements tools 51–60 from the complete 78-tool registry for the agentic
 # Strategic Asset Allocation (SAA) pipeline described in:
 #   Ang, Azimbayev, and Kim (2026) — "The Self-Driving Portfolio"
 #
@@ -15327,7 +15327,7 @@ def write_proposed_method_spec_json(
 # =============================================================================
 # SELF-DRIVING PORTFOLIO: TOOL REGISTRY — BATCH 6 (TOOLS 51–60)
 # =============================================================================
-# Implements tools 51–60 from the complete 64-tool registry for the agentic
+# Implements tools 51–60 from the complete 78-tool registry for the agentic
 # Strategic Asset Allocation (SAA) pipeline described in:
 #   Ang, Azimbayev, and Kim (2026) — "The Self-Driving Portfolio"
 #
@@ -17769,7 +17769,7 @@ def write_proposed_method_spec_json(
 # =============================================================================
 # SELF-DRIVING PORTFOLIO: TOOL REGISTRY — BATCH 7 (TOOLS 61–70)
 # =============================================================================
-# Implements the final 10 tools from the complete 64-tool registry plus
+# Implements the final 10 tools from the complete 78-tool registry plus
 # critical shared infrastructure callables for the agentic SAA pipeline
 # described in:
 #   Ang, Azimbayev, and Kim (2026) — "The Self-Driving Portfolio"
